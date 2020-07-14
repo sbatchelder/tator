@@ -1761,9 +1761,17 @@ class VideoCanvas extends AnnotationCanvas {
           this.updateOffscreenBuffer(frameIdx, source, width, height);
           // Display the latest + hold it
           this._offscreenDraw.dispImage(true, true);
+          let gl = this._offscreenDraw.gl;
+          // Read back pixels into an array from the gl context
+          var pixels = new Uint8Array(gl.drawingBufferWidth *
+                                      gl.drawingBufferHeight * 4);
+          gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight,
+                        gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          // pixels now contains the frame data
+
+          // Can return a CustomEvent here to dispatch to higher level process
           let event = algo.processFrame(frameIdx,
-                                        this._offscreen,
-                                        this._offscreenDraw.gl);
+                                        pixels);
           if (event)
           {
             this.dispatchEvent(event);

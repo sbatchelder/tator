@@ -8,7 +8,7 @@ class Algo {
   }
 
   // This gets called once per frame
-  processFrame(frameIdx, offscreenCanvas, gl)
+  processFrame(frameIdx, frameData)
   {
     if (frameIdx % 10 == 0)
     {
@@ -22,14 +22,6 @@ class Algo {
     }
     console.info("Processing frame " + frameIdx)
 
-    // Read back pixels into an array from the gl context
-    var pixels = new Uint8Array(gl.drawingBufferWidth *
-                                gl.drawingBufferHeight * 4);
-    gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight,
-                  gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    // pixels now contains the frame data
-
-    // Can return a CustomEvent here to dispatch to higher level process
     return null;
   }
 
