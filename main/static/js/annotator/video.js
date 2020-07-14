@@ -1745,7 +1745,7 @@ class VideoCanvas extends AnnotationCanvas {
 
         // Todo: Figure out if web component could work here
         // with re-registration somehow.
-        let algo = algoFactory(this._videoObject);
+        let algo = algoFactory(this._videoObject, this);
 
         let frameNumber = 0;
         let numFrames = this._videoObject.num_frames;

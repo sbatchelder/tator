@@ -1,7 +1,7 @@
 class Algo {
 
   // notionally do something the video definition
-  constructor(videoDef)
+  constructor(videoDef, algoCanvas)
   {
     console.info("Processing = " + JSON.stringify(videoDef));
     this._last = null;
@@ -35,7 +35,7 @@ class Algo {
 // Eval won't store the 'Algo' class definition globally
 // This is actually helpful, we just need a factory method to
 // construct it
-function algoFactory(videoDef)
+function algoFactory(videoDef, algoCanvas)
 {
-  return new Algo(videoDef);
+  return new Algo(videoDef, algoCanvas);
 }
