@@ -1723,18 +1723,12 @@ class VideoCanvas extends AnnotationCanvas {
   // Launch a feed forward algorithm that processes all frames
   // A different paradigm could be used on single frame processing
   // where the display canvas could be a valid output
-  launch_ff_algo(url_to_js)
+  // Params:
+  // urlToJs: URL to the *.js file. See 'example-ff-algo.js'
+  // startFrame: defaults to 0
+  // frameLimit: defaults to videoObject.num_frames
+  launchFFAlgo(urlToJs, startFrame, frameLimit)
   {
-    /* js file has 3 global functions
-
-    TODO: Would be nice to make these namespaced to support more than 1
-
-    // initializes the global module
-    algo_init(video_def)
-    // algo_process_frame(frameIdx, canvas)
-    // algo_finalize()
-    */
-
     if (this._videoObject == undefined)
     {
       console.error("Can't process FF-algos on images");
@@ -1742,33 +1736,44 @@ class VideoCanvas extends AnnotationCanvas {
     }
 
     // Load an evaluate the JS file
-    fetch(url_to_js)
+    fetch(urlToJs)
       .then((resp) => {return resp.text()})
       .then((text) => {
+
+        // Evaluate the javascript
         window.eval(text)
 
-         // Initialize the algo so you can be number of frames and all that
-        algo_init(this._videoObject);
+        // Todo: Figure out if web component could work here
+        // with re-registration somehow.
+        let algo = algoFactory(this._videoObject);
 
         let frameNumber = 0;
-        let num_frames = this._videoObject.num_frames;
+        let numFrames = this._videoObject.num_frames;
+        if (startFrame)
+        {
+          frameNumber = startFrame;
+        }
+        if (frameLimit)
+        {
+          numFrames = frameLimit + frameNumber;
+        }
         let frameIter = (frameIdx, source, width, height) => {
           this.updateOffscreenBuffer(frameIdx, source, width, height);
           // Display the latest + hold it
           this._offscreenDraw.dispImage(true, true);
-          algo_process_frame(frameIdx, this._offscreen, this._offscreenDraw.gl);
+          algo.processFrame(frameIdx, this._offscreen, this._offscreenDraw.gl);
         };
 
         let advance = () => {
           this.seekFrame(frameNumber,frameIter).then(() => {
             frameNumber+=1;
-            if (frameNumber < num_frames)
+            if (frameNumber < numFrames)
             {
               advance();
             }
             else
             {
-              algo_finalize();
+              algo.finalize();
             }
           });
         };
