@@ -28,6 +28,9 @@ class Algo {
     gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight,
                   gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     // pixels now contains the frame data
+
+    // Can return a CustomEvent here to dispatch to higher level process
+    return null;
   }
 
   // This get called afer the last frame is processed

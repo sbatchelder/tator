@@ -1761,7 +1761,13 @@ class VideoCanvas extends AnnotationCanvas {
           this.updateOffscreenBuffer(frameIdx, source, width, height);
           // Display the latest + hold it
           this._offscreenDraw.dispImage(true, true);
-          algo.processFrame(frameIdx, this._offscreen, this._offscreenDraw.gl);
+          let event = algo.processFrame(frameIdx,
+                                        this._offscreen,
+                                        this._offscreenDraw.gl);
+          if (event)
+          {
+            this.dispatchEvent(event);
+          }
         };
 
         let advance = () => {
