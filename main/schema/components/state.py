@@ -81,6 +81,16 @@ state_update = {
             'type': 'boolean',
             'nullable': True,
         },
+        'localization_ids_add': {
+            'description': 'List of new localization IDs that this state applies to.',
+            'type': 'array',
+            'items': {'type': 'integer'},
+        },
+        'localization_ids_remove': {
+            'description': 'List of new localization IDs that this state applies to.',
+            'type': 'array',
+            'items': {'type': 'integer'},
+        },
     },
 }
 

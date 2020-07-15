@@ -1719,6 +1719,81 @@ class VideoCanvas extends AnnotationCanvas {
   //////////////////////////////////
   /// End button handlers
   //////////////////////////////////
+
+  // Launch a feed forward algorithm that processes all frames
+  // A different paradigm could be used on single frame processing
+  // where the display canvas could be a valid output
+  // Params:
+  // urlToJs: URL to the *.js file. See 'example-ff-algo.js'
+  // startFrame: defaults to 0
+  // frameLimit: defaults to videoObject.num_frames
+  launchFFAlgo(urlToJs, startFrame, frameLimit)
+  {
+    if (this._videoObject == undefined)
+    {
+      console.error("Can't process FF-algos on images");
+      return;
+    }
+
+    // Load an evaluate the JS file
+    fetch(urlToJs)
+      .then((resp) => {return resp.text()})
+      .then((text) => {
+
+        // Evaluate the javascript
+        window.eval(text)
+
+        // Todo: Figure out if web component could work here
+        // with re-registration somehow.
+        let algo = algoFactory(this._videoObject, this);
+
+        let frameNumber = 0;
+        let numFrames = this._videoObject.num_frames;
+        if (startFrame)
+        {
+          frameNumber = startFrame;
+        }
+        if (frameLimit)
+        {
+          numFrames = frameLimit + frameNumber;
+        }
+        let frameIter = (frameIdx, source, width, height) => {
+          this.updateOffscreenBuffer(frameIdx, source, width, height);
+          // Display the latest + hold it
+          this._offscreenDraw.dispImage(true, true);
+          let gl = this._offscreenDraw.gl;
+          // Read back pixels into an array from the gl context
+          var pixels = new Uint8Array(gl.drawingBufferWidth *
+                                      gl.drawingBufferHeight * 4);
+          gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight,
+                        gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          // pixels now contains the frame data
+
+          // Can return a CustomEvent here to dispatch to higher level process
+          let event = algo.processFrame(frameIdx,
+                                        pixels);
+          if (event)
+          {
+            this.dispatchEvent(event);
+          }
+        };
+
+        let advance = () => {
+          this.seekFrame(frameNumber,frameIter).then(() => {
+            frameNumber+=1;
+            if (frameNumber < numFrames)
+            {
+              advance();
+            }
+            else
+            {
+              algo.finalize();
+            }
+          });
+        };
+        advance();
+      });
+  }
 };
 
 customElements.define("video-canvas", VideoCanvas);

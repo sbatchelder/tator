@@ -332,9 +332,13 @@ class StateDetailAPI(BaseDetailView):
             media_elements = Media.objects.filter(pk__in=params['media_ids'])
             obj.media.set(media_elements)
 
-        if 'localization_ids' in params:
-            localizations = Localization.objects.filter(pk__in=params['localization_ids'])
-            obj.localizations.set(localizations)
+        if 'localization_ids_add' in params:
+            localizations = Localization.objects.filter(pk__in=params['localization_ids_add'])
+            obj.localizations.add(*list(localizations))
+
+        if 'localization_ids_remove' in params:
+            localizations = Localization.objects.filter(pk__in=params['localization_ids_remove'])
+            obj.localizations.remove(*list(localizations))
 
         new_attrs = validate_attributes(params, obj)
         obj = patch_attributes(new_attrs, obj)
