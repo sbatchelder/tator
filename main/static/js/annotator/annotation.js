@@ -822,6 +822,178 @@ class AnnotationCanvas extends TatorElement
 
     if (this._mouseMode == MouseMode.SELECT)
     {
+
+      // Track extension
+      if (event.ctrlKey && event.code == "KeyE")
+      {
+        event.stopPropagation();
+
+        // TODO May not actually need this check because the mouse mode is already
+        //      in the selected state?
+        if (this.activeLocalization == null)
+        {
+          console.info("Localization not selected - track extension not performed.")
+        }
+        else
+        {
+          console.info("Performing track extension");
+          this.extendTrack();
+          /*
+          // Create a localization at the new frame using the same position
+          // as the currently selected localization
+          const frameJump = 30;
+
+          const localization = this.activeLocalization
+          const objDescription = this.getObjectDescription(localization);
+          let newLocalization = AnnotationCanvas.updatePositions(localization, objDescription);
+
+          newLocalization = Object.assign(newLocalization, localization.attributes);
+          newLocalization.version = localization.version;
+          newLocalization.type = Number(localization.meta.split("_")[1]);
+          newLocalization.media_id = localization.media;
+          newLocalization.frame = localization.frame + frameJump;
+          newLocalization.modified = true;
+          this.gotoFrame(newLocalization.frame)
+
+          if (localization.id in this._data._trackDb)
+          {
+            // Create a new localization and then add it to the track database.
+
+          }
+          else
+          {
+            // The localization is not a part of any track.
+            // Add this localization to a new track (i.e. state)
+
+            let
+
+
+            let requestObj = {method: "POST",
+              ...this._undo._headers(),
+              body: JSON.stringify([newObject])};
+
+            // Create the state/track via the REST API
+            fetchRetry(`/rest/State/${localization.project}`, requestObj)
+            .then(response => {
+                if (response.ok) {
+                  return response.json();
+                }
+                else{
+                  console.error("Error fetching updated data for type ID " + typeId);
+                  response.json()
+                  .then(json => console.log(JSON.stringify(json)));
+                }
+            })
+            .then(json => {
+                newObject.id = json.id;
+                this.updateType(newObject, () => {
+                  let localizations = this._framedData.get(newObject.frame);
+                  for (let local of localizations)
+                  {
+                    if (local.id == newObject.id)
+                    {
+                      this.selectLocalization(local, true);
+                      break;
+                    }
+                  }
+
+                  this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+                                                    {composed: true,
+                                                      detail: {enabled: false}}));
+                });
+            });
+
+          }
+
+          // Make a fake drag event
+          var dragEvent = {};
+          dragEvent.start = {x: 0.0, y: 0.0};
+          dragEvent.current = dragEvent.start;
+          dragEvent.end = dragEvent.start;
+          dragEvent.url = this._draw.viewport.toDataURL();
+          dragEvent.useExact = true;
+          dragEvent.x = newLocalization.x;
+          dragEvent.y = newLocalization.y;
+          dragEvent.width = newLocalization.width;
+          dragEvent.height = newLocalization.height;
+          dragEvent.frame = newLocalization.frame;
+
+          var objForModal = {};
+          objForModal.dtype = "box";
+          objForModal.id = localization.meta;
+          this.makeModalCreationPrompt(objForModal,
+                                       dragEvent,
+                                       null,
+                                       null);
+          */
+
+          /*
+          // Make the cloned localization request body for the REST API
+          const localization = this.activeLocalization
+          const objDescription = this.getObjectDescription(localization);
+          let newObject = AnnotationCanvas.updatePositions(localization, objDescription);
+
+          newObject = Object.assign(newObject, localization.attributes);
+          newObject.version = localization.version;
+          newObject.type = Number(localization.meta.split("_")[1]);
+          newObject.media_id = localization.media;
+          newObject.frame = localization.frame + frameJump;
+          newObject.modified = true;
+
+          let request_obj = {method: "POST",
+            ...this._undo._headers(),
+            body: JSON.stringify([newObject])};
+          console.info(request_obj)
+
+          // Create the localization via the REST API
+          fetchRetry(`/rest/Localizations/${localization.project}`, request_obj)
+          .then(response => {
+              if (response.ok) {
+                return response.json();
+              }
+              else{
+                console.error("Error fetching updated data for type ID " + typeId);
+                response.json()
+                .then(json => console.log(JSON.stringify(json)));
+              }
+          })
+          .then(json => {
+              newObject.id = json.id;
+              this.updateType(newObject, () => {
+                let localizations = this._framedData.get(newObject.frame);
+                for (let local of localizations)
+                {
+                  if (local.id == newObject.id)
+                  {
+                    this.selectLocalization(local, true);
+                    break;
+                  }
+                }
+
+                this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+                                                  {composed: true,
+                                                    detail: {enabled: false}}));
+              });
+          });
+          */
+        }
+      }
+
+      // Track fill
+      if (event.ctrlKey && event.code == "KeyF")
+      {
+        event.stopPropagation();
+        if (this.activeLocalization.id in this._data._trackDb)
+        {
+          console.info("Performing track fill")
+          // #TODO Do great things
+        }
+        else
+        {
+          console.info("Selected localization is not a part of any track. Track fill command ignored.")
+        }
+      }
+
       if (event.code == 'Delete' && this._canEdit)
       {
         this.deleteLocalization(this.activeLocalization);
@@ -1326,7 +1498,7 @@ class AnnotationCanvas extends TatorElement
           this.emphasizeLocalization(this.activeLocalization);
         }
         else if (this._emphasis != null && this._emphasis != this.activeLocalization)
-        {        
+        {
           this._canvas.classList.remove("select-pointer");
           this._emphasis = null;
           this.refresh();
@@ -2088,11 +2260,21 @@ class AnnotationCanvas extends TatorElement
       let localization=null;
       if (objDescription.dtype=="box")
       {
-        localization=this.scaleToRelative(boxInfo);
-        requestObj.x = localization[0];
-        requestObj.y = localization[1];
-        requestObj.width = localization[2];
-        requestObj.height = localization[3];
+        if (dragInfo.useExact == null)
+        {
+          localization=this.scaleToRelative(boxInfo);
+          requestObj.x = localization[0];
+          requestObj.y = localization[1];
+          requestObj.width = localization[2];
+          requestObj.height = localization[3];
+        }
+        else
+        {
+          requestObj.x = dragInfo.x;
+          requestObj.y = dragInfo.y;
+          requestObj.width = dragInfo.width;
+          requestObj.height = dragInfo.height;
+        }
       }
       else if (objDescription.dtype=="line")
       {
@@ -2112,7 +2294,14 @@ class AnnotationCanvas extends TatorElement
         requestObj.y = localization[1];
       }
 
-      requestObj.frame = this.currentFrame();
+      if (dragInfo.useExact == null)
+      {
+        requestObj.frame = this.currentFrame();
+      }
+      else
+      {
+        requestObj.frame = dragInfo.frame;
+      }
     }
 
     if (this._redrawObj !== null && typeof this._redrawObj !== "undefined") {
@@ -3159,4 +3348,166 @@ class AnnotationCanvas extends TatorElement
           anchor.click();
         });
   }
+
+  extendTrack()
+  {
+    // #TODO Only perform this if this is a video canvas and not an image canvas
+
+    // #TODO parameterize this?
+    const frameJump = 30;
+    const newFrame = this.currentFrame() + frameJump;
+    if (newFrame > this._numFrames - 1)
+    {
+      // #TODO Make a window alert
+      console.log("Frame " + newFrame + " is past the last frame. Not extending track.")
+      return;
+    }
+
+    // Create a localization at the new frame using the same position
+    // as the currently selected localization
+    const localization = this.activeLocalization
+    const objDescription = this.getObjectDescription(localization);
+    var newLocalization = AnnotationCanvas.updatePositions(localization, objDescription);
+
+    newLocalization = Object.assign(newLocalization, localization.attributes);
+    newLocalization.version = localization.version;
+    newLocalization.type = Number(localization.meta.split("_")[1]);
+    newLocalization.media_id = localization.media;
+    newLocalization.frame = newFrame;
+    newLocalization.modified = true;
+
+    var request_obj = {method: "POST",
+      ...this._undo._headers(),
+      body: JSON.stringify([newLocalization])};
+    console.info(request_obj)
+
+    // Create the localization via the REST API
+    fetchRetry(`/rest/Localizations/${localization.project}`, request_obj)
+    .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        else{
+          console.error("Error fetching updated data for type ID " + typeId);
+          response.json()
+          .then(json => console.log(JSON.stringify(json)));
+        }
+    })
+    .then(json => {
+      var newLocalizationId = json.id;
+      this.updateType(objDescription);
+      // #TODO Do we need this?
+      //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+      //                                  {composed: true,
+      //                                    detail: {enabled: false}}));
+    });
+
+    // Now, determine if the selected localization was a part of a track or not
+    if (localization.id in this._data._trackDb)
+    {
+      // Yup! It was. Use the REST API to PATCH the track with the new localization.
+      console.log("#TODO PATCH the track with the new localization")
+    }
+    else
+    {
+      // Nope, the localization is not a part of any track.
+      console.log("POSTING a new track with the localization")
+      
+      // Create the state/track via the REST API.
+      //
+      // This assumes that the attributes are the same between the localization
+      // and the track.
+      newState = {}
+      newState.type = []
+      newState.media_ids = [newLocalization.media_id]
+
+      let requestObj = {method: "POST",
+        ...this._undo._headers(),
+        body: JSON.stringify([newState])};
+
+      fetchRetry(`/rest/State/${localization.project}`, requestObj)
+      .then(response => {
+          if (response.ok) {
+            return response.json();
+          }
+          else{
+            console.error("Error fetching updated data for type ID " + typeId);
+            response.json()
+            .then(json => console.log(JSON.stringify(json)));
+          }
+      })
+      .then(json => {
+          newState.id = json.id;
+          // #TODO Do we need this?
+          //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+          //                                  {composed: true,
+          //                                    detail: {enabled: false}}));
+      });
+    }
+
+    // Go to the new frame
+    this.gotoFrame(newFrame)
+  }
+
 }
+
+// Scratch code
+    /*
+    let requestObj = {method: "POST",
+      ...this._undo._headers(),
+      body: JSON.stringify([newObject])};
+
+    // Create the state/track via the REST API
+    fetchRetry(`/rest/State/${localization.project}`, requestObj)
+    .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        else{
+          console.error("Error fetching updated data for type ID " + typeId);
+          response.json()
+          .then(json => console.log(JSON.stringify(json)));
+        }
+    })
+    .then(json => {
+        newObject.id = json.id;
+        this.updateType(newObject, () => {
+          let localizations = this._framedData.get(newObject.frame);
+          for (let local of localizations)
+          {
+            if (local.id == newObject.id)
+            {
+              this.selectLocalization(local, true);
+              break;
+            }
+          }
+
+          this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+                                            {composed: true,
+                                              detail: {enabled: false}}));
+        });
+    });
+    */
+
+/*
+          // Make a fake drag event
+          var dragEvent = {};
+          dragEvent.start = {x: 0.0, y: 0.0};
+          dragEvent.current = dragEvent.start;
+          dragEvent.end = dragEvent.start;
+          dragEvent.url = this._draw.viewport.toDataURL();
+          dragEvent.useExact = true;
+          dragEvent.x = newLocalization.x;
+          dragEvent.y = newLocalization.y;
+          dragEvent.width = newLocalization.width;
+          dragEvent.height = newLocalization.height;
+          dragEvent.frame = newLocalization.frame;
+
+          var objForModal = {};
+          objForModal.dtype = "box";
+          objForModal.id = localization.meta;
+          this.makeModalCreationPrompt(objForModal,
+                                       dragEvent,
+                                       null,
+                                       null);
+*/
