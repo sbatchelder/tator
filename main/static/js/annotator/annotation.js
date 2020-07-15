@@ -845,144 +845,6 @@ class AnnotationCanvas extends TatorElement
         {
           console.info("Performing track extension");
           this.extendTrack();
-          /*
-          // Create a localization at the new frame using the same position
-          // as the currently selected localization
-          const frameJump = 30;
-
-          const localization = this.activeLocalization
-          const objDescription = this.getObjectDescription(localization);
-          let newLocalization = AnnotationCanvas.updatePositions(localization, objDescription);
-
-          newLocalization = Object.assign(newLocalization, localization.attributes);
-          newLocalization.version = localization.version;
-          newLocalization.type = Number(localization.meta.split("_")[1]);
-          newLocalization.media_id = localization.media;
-          newLocalization.frame = localization.frame + frameJump;
-          newLocalization.modified = true;
-          this.gotoFrame(newLocalization.frame)
-
-          if (localization.id in this._data._trackDb)
-          {
-            // Create a new localization and then add it to the track database.
-
-          }
-          else
-          {
-            // The localization is not a part of any track.
-            // Add this localization to a new track (i.e. state)
-
-            let
-
-
-            let requestObj = {method: "POST",
-              ...this._undo._headers(),
-              body: JSON.stringify([newObject])};
-
-            // Create the state/track via the REST API
-            fetchRetry(`/rest/State/${localization.project}`, requestObj)
-            .then(response => {
-                if (response.ok) {
-                  return response.json();
-                }
-                else{
-                  console.error("Error fetching updated data for type ID " + typeId);
-                  response.json()
-                  .then(json => console.log(JSON.stringify(json)));
-                }
-            })
-            .then(json => {
-                newObject.id = json.id;
-                this.updateType(newObject, () => {
-                  let localizations = this._framedData.get(newObject.frame);
-                  for (let local of localizations)
-                  {
-                    if (local.id == newObject.id)
-                    {
-                      this.selectLocalization(local, true);
-                      break;
-                    }
-                  }
-
-                  this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-                                                    {composed: true,
-                                                      detail: {enabled: false}}));
-                });
-            });
-
-          }
-
-          // Make a fake drag event
-          var dragEvent = {};
-          dragEvent.start = {x: 0.0, y: 0.0};
-          dragEvent.current = dragEvent.start;
-          dragEvent.end = dragEvent.start;
-          dragEvent.url = this._draw.viewport.toDataURL();
-          dragEvent.useExact = true;
-          dragEvent.x = newLocalization.x;
-          dragEvent.y = newLocalization.y;
-          dragEvent.width = newLocalization.width;
-          dragEvent.height = newLocalization.height;
-          dragEvent.frame = newLocalization.frame;
-
-          var objForModal = {};
-          objForModal.dtype = "box";
-          objForModal.id = localization.meta;
-          this.makeModalCreationPrompt(objForModal,
-                                       dragEvent,
-                                       null,
-                                       null);
-          */
-
-          /*
-          // Make the cloned localization request body for the REST API
-          const localization = this.activeLocalization
-          const objDescription = this.getObjectDescription(localization);
-          let newObject = AnnotationCanvas.updatePositions(localization, objDescription);
-
-          newObject = Object.assign(newObject, localization.attributes);
-          newObject.version = localization.version;
-          newObject.type = Number(localization.meta.split("_")[1]);
-          newObject.media_id = localization.media;
-          newObject.frame = localization.frame + frameJump;
-          newObject.modified = true;
-
-          let request_obj = {method: "POST",
-            ...this._undo._headers(),
-            body: JSON.stringify([newObject])};
-          console.info(request_obj)
-
-          // Create the localization via the REST API
-          fetchRetry(`/rest/Localizations/${localization.project}`, request_obj)
-          .then(response => {
-              if (response.ok) {
-                return response.json();
-              }
-              else{
-                console.error("Error fetching updated data for type ID " + typeId);
-                response.json()
-                .then(json => console.log(JSON.stringify(json)));
-              }
-          })
-          .then(json => {
-              newObject.id = json.id;
-              this.updateType(newObject, () => {
-                let localizations = this._framedData.get(newObject.frame);
-                for (let local of localizations)
-                {
-                  if (local.id == newObject.id)
-                  {
-                    this.selectLocalization(local, true);
-                    break;
-                  }
-                }
-
-                this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-                                                  {composed: true,
-                                                    detail: {enabled: false}}));
-              });
-          });
-          */
         }
       }
 
@@ -3385,148 +3247,140 @@ class AnnotationCanvas extends TatorElement
     // Create a localization at the new frame using the same position
     // as the currently selected localization
     const localization = this.activeLocalization
-    const objDescription = this.getObjectDescription(localization);
-    var newLocalization = AnnotationCanvas.updatePositions(localization, objDescription);
+    const localizationDescription = this.getObjectDescription(localization);
+    var newLocalization = AnnotationCanvas.updatePositions(localization, localizationDescription);
+    var newLocalizationId;
 
+    const savedAttributes = localization.attributes;
     newLocalization = Object.assign(newLocalization, localization.attributes);
     newLocalization.version = localization.version;
     newLocalization.type = Number(localization.meta.split("_")[1]);
-    newLocalization.media_id = localization.media;
     newLocalization.frame = newFrame;
     newLocalization.modified = true;
 
-    var request_obj = {method: "POST",
-      ...this._undo._headers(),
-      body: JSON.stringify([newLocalization])};
-    console.info(request_obj)
-
-    // Create the localization via the REST API
-    fetchRetry(`/rest/Localizations/${localization.project}`, request_obj)
-    .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        else{
-          console.error("Error fetching updated data for type ID " + typeId);
-          response.json()
-          .then(json => console.log(JSON.stringify(json)));
-        }
-    })
-    .then(json => {
-      var newLocalizationId = json.id;
-      this.updateType(objDescription);
-      // #TODO Do we need this?
-      //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-      //                                  {composed: true,
-      //                                    detail: {enabled: false}}));
-    });
-
-    // Now, determine if the selected localization was a part of a track or not
-    if (localization.id in this._data._trackDb)
+    // #TODO Revisit this. Not sure why sometimes media is there or why media_id is there isntead
+    if (localization.hasOwnProperty("media"))
     {
-      // Yup! It was. Use the REST API to PATCH the track with the new localization.
-      console.log("#TODO PATCH the track with the new localization")
+      newLocalization.media_id = localization.media;
     }
     else
     {
-      // Nope, the localization is not a part of any track.
-      console.log("POSTING a new track with the localization")
-      
-      // Create the state/track via the REST API.
-      //
-      // This assumes that the attributes are the same between the localization
-      // and the track.
-      newState = {}
-      newState.type = []
-      newState.media_ids = [newLocalization.media_id]
-
-      let requestObj = {method: "POST",
-        ...this._undo._headers(),
-        body: JSON.stringify([newState])};
-
-      fetchRetry(`/rest/State/${localization.project}`, requestObj)
-      .then(response => {
-          if (response.ok) {
-            return response.json();
-          }
-          else{
-            console.error("Error fetching updated data for type ID " + typeId);
-            response.json()
-            .then(json => console.log(JSON.stringify(json)));
-          }
-      })
-      .then(json => {
-          newState.id = json.id;
-          // #TODO Do we need this?
-          //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-          //                                  {composed: true,
-          //                                    detail: {enabled: false}}));
-      });
+      newLocalization.media_id = localization.media_id;
     }
 
-    // Go to the new frame
-    this.gotoFrame(newFrame)
-  }
+    // #TODO Revisit this. Probably could be pulled out somewhere else
+    //       There were inconsistent problems with pulling the project ID out of the active
+    //       localization (the project property sometimes wasn't there)
+    var project = this._undo.getAttribute("project-id")
 
-}
-
-// Scratch code
-    /*
-    let requestObj = {method: "POST",
+    var locRequstObj = {method: "POST",
       ...this._undo._headers(),
-      body: JSON.stringify([newObject])};
+      body: JSON.stringify([newLocalization])};
+    console.info(locRequstObj)
 
-    // Create the state/track via the REST API
-    fetchRetry(`/rest/State/${localization.project}`, requestObj)
+
+    // #TODO Do we need this?
+    //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+    //                                  {composed: true,
+     //                                   detail: {enabled: true}}));
+
+    // Create the localization via the REST API
+    fetchRetry(`/rest/Localizations/${project}`, locRequstObj)
     .then(response => {
         if (response.ok) {
           return response.json();
         }
         else{
-          console.error("Error fetching updated data for type ID " + typeId);
+          console.error("Error fetching updated data for localization");
           response.json()
           .then(json => console.log(JSON.stringify(json)));
+
+          // #TODO Do we need this?
+          //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+          //                                 {composed: true,
+         //                                     detail: {enabled: false}}));
         }
     })
     .then(json => {
-        newObject.id = json.id;
-        this.updateType(newObject, () => {
-          let localizations = this._framedData.get(newObject.frame);
-          for (let local of localizations)
-          {
-            if (local.id == newObject.id)
-            {
-              this.selectLocalization(local, true);
-              break;
+
+      // Update the cached data for the types we've updated (detections and tracks)
+      this.updateType(localizationDescription);
+
+      // Save the new localization ID to update the state later
+      newLocalizationId = json.id[0];
+
+      // First, get the state type based on the registered state types.
+      // #TODO I'm guessing this needs to be fixed at some point. It'll just grab
+      //       the first "state" object that has been registered.
+      var stateTypeId;
+      var stateType;
+      for (let dataType in window.tator_video._data._dataTypes)
+      {
+        if (dataType.includes('state'))
+        {
+          stateType = dataType
+          stateTypeId = Number(dataType.split("_")[1]);
+          break;
+        }
+      }
+
+      // Now, determine if the selected localization was a part of a track or not
+      if (localization.id in this._data._trackDb)
+      {
+        // Yup! It was. Use the REST API to PATCH the track with the new localization.
+        console.log("#TODO PATCHING the track with the new localization")
+      }
+      else
+      {
+        // Nope, the localization is not a part of any track.
+        console.log("POSTING a new track with the localization")
+
+        // Create the state/track via the REST API.
+
+        // This assumes that the attributes are the same between the localization
+        // and the track.
+        let newState = Object.assign({}, savedAttributes)
+        newState.media_ids = [newLocalization.media_id];
+        newState.localization_ids = [localization.id, newLocalizationId];
+        newState.type = stateTypeId;
+        newState.modified = true;
+
+        let stateRequestObj = {method: "POST",
+          ...this._undo._headers(),
+          body: JSON.stringify([newState])};
+        console.info(stateRequestObj)
+
+        fetchRetry(`/rest/States/${project}`, stateRequestObj)
+        .then(response => {
+            if (response.ok) {
+              return response.json();
             }
-          }
+            else{
+          console.error("Error fetching updated data for state");
+              response.json()
+              .then(json => console.log(JSON.stringify(json)));
+            }
+        })
+        .then(json => {
+            let newStateId = json.id;
 
-          this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-                                            {composed: true,
-                                              detail: {enabled: false}}));
+            // #TODO Do we need this?
+            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+            //                                  {composed: true,
+            //                                    detail: {enabled: false}}));
         });
+      }
+
+      this.updateType(this._data._dataTypes[stateType]);
+
+      // Ready to rock and roll. Select the new localization
+      const track = this._data._trackDb[newLocalizationId];
+      this._activeTrack = track
+      this.gotoFrame(newFrame);
+      //this.dispatchEvent(new CustomEvent("select", {
+      //  detail: track,
+      //  composed: true,
+      //}));
     });
-    */
-
-/*
-          // Make a fake drag event
-          var dragEvent = {};
-          dragEvent.start = {x: 0.0, y: 0.0};
-          dragEvent.current = dragEvent.start;
-          dragEvent.end = dragEvent.start;
-          dragEvent.url = this._draw.viewport.toDataURL();
-          dragEvent.useExact = true;
-          dragEvent.x = newLocalization.x;
-          dragEvent.y = newLocalization.y;
-          dragEvent.width = newLocalization.width;
-          dragEvent.height = newLocalization.height;
-          dragEvent.frame = newLocalization.frame;
-
-          var objForModal = {};
-          objForModal.dtype = "box";
-          objForModal.id = localization.meta;
-          this.makeModalCreationPrompt(objForModal,
-                                       dragEvent,
-                                       null,
-                                       null);
-*/
+  }
+}
