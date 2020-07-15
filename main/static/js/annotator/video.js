@@ -751,6 +751,9 @@ class VideoCanvas extends AnnotationCanvas {
       msg += `\tUNMASKED RENDERER = ${gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}\n`;
       Utilities.sendNotification(msg, true);
     }
+
+    this.addEventListener("extendtrack", this.extendTrack.bind(this));
+
   }
 
   refresh(forceSeekBuffer)
@@ -1793,6 +1796,226 @@ class VideoCanvas extends AnnotationCanvas {
         };
         advance();
       });
+  }
+
+  // #TODO Information about this
+  fillTrack()
+  {
+    // #TODO Do great things
+  }
+
+  // #TODO Information about this
+  extendTrack()
+  {
+    // TODO May not actually need this check because the mouse mode is already
+    //      in the selected state?
+    if (this.activeLocalization == null)
+    {
+      if (this._activeTrack == null)
+      {
+        window.alert("Track extension ignored. Select an existing track or create a new detection prior to using this function.")
+        return;
+      }
+      else
+      {
+        window.alert("No detection selected in this frame. Create a detection to manually extend the track. #TODO")
+        return;
+      }
+    }
+    console.info("Performing track extension");
+
+    // #TODO parameterize this?
+    const frameJump = 30;
+    const newFrame = this.currentFrame() + frameJump;
+    if (newFrame > this._numFrames - 1)
+    {
+      // #TODO Make a window alert
+      console.log("Frame " + newFrame + " is past the last frame. Not extending track.")
+      return;
+    }
+
+    // Create a localization at the new frame using the same position
+    // as the currently selected localization
+    const localization = this.activeLocalization
+    const localizationDescription = this.getObjectDescription(localization);
+    var newLocalization = AnnotationCanvas.updatePositions(localization, localizationDescription);
+    var newLocalizationId;
+
+    const savedAttributes = localization.attributes;
+    newLocalization = Object.assign(newLocalization, localization.attributes);
+    newLocalization.version = localization.version;
+    newLocalization.type = Number(localization.meta.split("_")[1]);
+    newLocalization.frame = newFrame;
+    newLocalization.modified = true;
+
+    // #TODO Revisit this. Not sure why sometimes media is there or why media_id is there isntead
+    if (localization.hasOwnProperty("media"))
+    {
+      newLocalization.media_id = localization.media;
+    }
+    else
+    {
+      newLocalization.media_id = localization.media_id;
+    }
+
+    // #TODO Revisit this. Probably could be pulled out somewhere else
+    //       There were inconsistent problems with pulling the project ID out of the active
+    //       localization (the project property sometimes wasn't there)
+    var project = this._undo.getAttribute("project-id")
+
+    var locRequstObj = {method: "POST",
+      ...this._undo._headers(),
+      body: JSON.stringify([newLocalization])};
+    console.info(locRequstObj)
+
+
+    // #TODO Do we need this?
+    //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+    //                                  {composed: true,
+     //                                   detail: {enabled: true}}));
+
+    // Create the localization via the REST API
+    fetchRetry(`/rest/Localizations/${project}`, locRequstObj)
+    .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        else{
+          console.error("Error fetching updated data for localization");
+          response.json()
+          .then(json => console.log(JSON.stringify(json)));
+
+          // #TODO Do we need this?
+          //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+          //                                 {composed: true,
+         //                                     detail: {enabled: false}}));
+        }
+    })
+    .then(json => {
+
+      // Update the cached data for the types we've updated (detections and tracks)
+      this.updateType(localizationDescription);
+
+      // Save the new localization ID to update the state later
+      newLocalizationId = json.id[0];
+
+      // First, get the state type based on the registered state types.
+      // #TODO I'm guessing this needs to be fixed at some point. It'll just grab
+      //       the first "state" object that has been registered.
+      var stateTypeId;
+      var stateType;
+      for (let dataType in window.tator_video._data._dataTypes)
+      {
+        if (dataType.includes('state'))
+        {
+          stateType = dataType
+          stateTypeId = Number(dataType.split("_")[1]);
+          break;
+        }
+      }
+
+      // Now, determine if the selected localization was a part of a track or not
+      if (localization.id in this._data._trackDb)
+      {
+        // Yup! It was. Use the REST API to PATCH the track with the new localization.
+        console.log("PATCHING the track with the new localization")
+
+        // Get the associated state/track ID from the user selected track
+        let trackId = this._activeTrack.id;
+
+        // Update the state/track via the REST API.
+        let patchData = {};
+        patchData.localization_ids_add = [newLocalizationId];
+
+        let stateRequestObj = {method: "PATCH",
+          ...this._undo._headers(),
+          body: JSON.stringify(patchData)};
+        console.info(patchData)
+
+        fetchRetry(`/rest/State/${trackId}`, stateRequestObj)
+        .then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+            else{
+          console.error("Error fetching updated data for state");
+              response.json()
+              .then(json => console.log(JSON.stringify(json)));
+            }
+        })
+        .then(async() => {
+          this.updateType(this._data._dataTypes[stateType]);
+          
+          // #TODO This probably needs to change to something with retries on checking
+          //       the trackDb if it's been loaded into cache instead of just a flat timeout
+          await new Promise(r => setTimeout(r, 1000));
+          
+          // Ready to rock and roll. Select the new localization
+          const track = this._data._trackDb[newLocalizationId];
+          this._activeTrack = track
+          this.gotoFrame(newFrame);
+          this.dispatchEvent(new CustomEvent("select", {
+            detail: track,
+            composed: true,
+          }));
+            // #TODO Do we need this?
+            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+            //                                  {composed: true,
+            //                                    detail: {enabled: false}}));
+        });
+      }
+      else
+      {
+        // Nope, the localization is not a part of any track.
+        console.log("POSTING a new track with the localization")
+
+        // Create the state/track via the REST API.
+        // This assumes that the attributes are the same between the localization and the track.
+        let newState = Object.assign({}, savedAttributes)
+        newState.media_ids = [newLocalization.media_id];
+        newState.localization_ids = [localization.id, newLocalizationId];
+        newState.type = stateTypeId;
+        newState.modified = true;
+        newState.frame = this.currentFrame();
+
+        let stateRequestObj = {method: "POST",
+          ...this._undo._headers(),
+          body: JSON.stringify([newState])};
+        console.info(stateRequestObj)
+
+        fetchRetry(`/rest/States/${project}`, stateRequestObj)
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          }
+          else{
+          console.error("Error fetching updated data for state");
+              response.json()
+              .then(json => console.log(JSON.stringify(json)));
+          }
+        })
+        .then(async() => {
+          this.updateType(this._data._dataTypes[stateType]);
+          
+          // #TODO This probably needs to change to something with retries on checking
+          //       the trackDb if it's been loaded into cache instead of just a flat timeout
+          await new Promise(r => setTimeout(r, 1000));
+          
+          // Ready to rock and roll. Select the new localization
+          const track = this._data._trackDb[newLocalizationId];
+          this._activeTrack = track
+          this.gotoFrame(newFrame);
+          this.dispatchEvent(new CustomEvent("select", {
+            detail: track,
+            composed: true,
+          }));
+            // #TODO Do we need this?
+            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+            //                                  {composed: true,
+            //                                    detail: {enabled: false}}));
+        });
+      }
+    });
   }
 };
 

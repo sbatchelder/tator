@@ -774,6 +774,15 @@ class AnnotationCanvas extends TatorElement
           this.pause();
         }
       }
+
+      // Track extension shortcut. Available if a localization is selected or not.
+      if (event.ctrlKey && event.code == "KeyE")
+      {
+        event.stopPropagation();
+
+        // #TODO Not sure if we can use some form of inheritance instead.
+        this.dispatchEvent(new CustomEvent("extendtrack", {}));
+      }
     }
 
     if (this._mouseMode == MouseMode.QUERY)
@@ -829,25 +838,6 @@ class AnnotationCanvas extends TatorElement
 
     if (this._mouseMode == MouseMode.SELECT)
     {
-
-      // Track extension
-      if (event.ctrlKey && event.code == "KeyE")
-      {
-        event.stopPropagation();
-
-        // TODO May not actually need this check because the mouse mode is already
-        //      in the selected state?
-        if (this.activeLocalization == null)
-        {
-          console.info("Localization not selected - Track extension ignored.")
-        }
-        else
-        {
-          console.info("Performing track extension");
-          this.extendTrack();
-        }
-      }
-
       // Track fill
       if (event.ctrlKey && event.code == "KeyF")
       {
@@ -3228,188 +3218,5 @@ class AnnotationCanvas extends TatorElement
           anchor.download=`${filename}.png`;
           anchor.click();
         });
-  }
-
-  extendTrack()
-  {
-    // #TODO Only perform this if this is a video canvas and not an image canvas
-
-    // #TODO parameterize this?
-    const frameJump = 30;
-    const newFrame = this.currentFrame() + frameJump;
-    if (newFrame > this._numFrames - 1)
-    {
-      // #TODO Make a window alert
-      console.log("Frame " + newFrame + " is past the last frame. Not extending track.")
-      return;
-    }
-
-    // Create a localization at the new frame using the same position
-    // as the currently selected localization
-    const localization = this.activeLocalization
-    const localizationDescription = this.getObjectDescription(localization);
-    var newLocalization = AnnotationCanvas.updatePositions(localization, localizationDescription);
-    var newLocalizationId;
-
-    const savedAttributes = localization.attributes;
-    newLocalization = Object.assign(newLocalization, localization.attributes);
-    newLocalization.version = localization.version;
-    newLocalization.type = Number(localization.meta.split("_")[1]);
-    newLocalization.frame = newFrame;
-    newLocalization.modified = true;
-
-    // #TODO Revisit this. Not sure why sometimes media is there or why media_id is there isntead
-    if (localization.hasOwnProperty("media"))
-    {
-      newLocalization.media_id = localization.media;
-    }
-    else
-    {
-      newLocalization.media_id = localization.media_id;
-    }
-
-    // #TODO Revisit this. Probably could be pulled out somewhere else
-    //       There were inconsistent problems with pulling the project ID out of the active
-    //       localization (the project property sometimes wasn't there)
-    var project = this._undo.getAttribute("project-id")
-
-    var locRequstObj = {method: "POST",
-      ...this._undo._headers(),
-      body: JSON.stringify([newLocalization])};
-    console.info(locRequstObj)
-
-
-    // #TODO Do we need this?
-    //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-    //                                  {composed: true,
-     //                                   detail: {enabled: true}}));
-
-    // Create the localization via the REST API
-    fetchRetry(`/rest/Localizations/${project}`, locRequstObj)
-    .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        else{
-          console.error("Error fetching updated data for localization");
-          response.json()
-          .then(json => console.log(JSON.stringify(json)));
-
-          // #TODO Do we need this?
-          //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-          //                                 {composed: true,
-         //                                     detail: {enabled: false}}));
-        }
-    })
-    .then(json => {
-
-      // Update the cached data for the types we've updated (detections and tracks)
-      this.updateType(localizationDescription);
-
-      // Save the new localization ID to update the state later
-      newLocalizationId = json.id[0];
-
-      // First, get the state type based on the registered state types.
-      // #TODO I'm guessing this needs to be fixed at some point. It'll just grab
-      //       the first "state" object that has been registered.
-      var stateTypeId;
-      var stateType;
-      for (let dataType in window.tator_video._data._dataTypes)
-      {
-        if (dataType.includes('state'))
-        {
-          stateType = dataType
-          stateTypeId = Number(dataType.split("_")[1]);
-          break;
-        }
-      }
-
-      // Now, determine if the selected localization was a part of a track or not
-      if (localization.id in this._data._trackDb)
-      {
-        // Yup! It was. Use the REST API to PATCH the track with the new localization.
-        console.log("PATCHING the track with the new localization")
-
-        // Get the associated state/track ID
-        let trackId = this._activeTrack.id;
-
-        // Update the state/track via the REST API.
-        let patchData = {};
-        patchData.localization_ids_add = [newLocalizationId];
-
-        let stateRequestObj = {method: "PATCH",
-          ...this._undo._headers(),
-          body: JSON.stringify(patchData)};
-        console.info(patchData)
-
-        fetchRetry(`/rest/State/${trackId}`, stateRequestObj)
-        .then(response => {
-            if (response.ok) {
-              return response.json();
-            }
-            else{
-          console.error("Error fetching updated data for state");
-              response.json()
-              .then(json => console.log(JSON.stringify(json)));
-            }
-        })
-        .then(() => {
-            // #TODO Do we need this?
-            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-            //                                  {composed: true,
-            //                                    detail: {enabled: false}}));
-        });
-      }
-      else
-      {
-        // Nope, the localization is not a part of any track.
-        console.log("POSTING a new track with the localization")
-
-        // Create the state/track via the REST API.
-
-        // This assumes that the attributes are the same between the localization
-        // and the track.
-        let newState = Object.assign({}, savedAttributes)
-        newState.media_ids = [newLocalization.media_id];
-        newState.localization_ids = [localization.id, newLocalizationId];
-        newState.type = stateTypeId;
-        newState.modified = true;
-        newState.frame = this.currentFrame();
-
-        let stateRequestObj = {method: "POST",
-          ...this._undo._headers(),
-          body: JSON.stringify([newState])};
-        console.info(stateRequestObj)
-
-        fetchRetry(`/rest/States/${project}`, stateRequestObj)
-        .then(response => {
-            if (response.ok) {
-              return response.json();
-            }
-            else{
-          console.error("Error fetching updated data for state");
-              response.json()
-              .then(json => console.log(JSON.stringify(json)));
-            }
-        })
-        .then(() => {
-            // #TODO Do we need this?
-            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
-            //                                  {composed: true,
-            //                                    detail: {enabled: false}}));
-        });
-      }
-
-      this.updateType(this._data._dataTypes[stateType]);
-
-      // Ready to rock and roll. Select the new localization
-      const track = this._data._trackDb[newLocalizationId];
-      this._activeTrack = track
-      this.gotoFrame(newFrame);
-      //this.dispatchEvent(new CustomEvent("select", {
-      //  detail: track,
-      //  composed: true,
-      //}));
-    });
   }
 }
