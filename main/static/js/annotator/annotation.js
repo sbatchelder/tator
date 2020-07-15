@@ -839,7 +839,7 @@ class AnnotationCanvas extends TatorElement
         //      in the selected state?
         if (this.activeLocalization == null)
         {
-          console.info("Localization not selected - track extension not performed.")
+          console.info("Localization not selected - Track extension ignored.")
         }
         else
         {
@@ -3328,7 +3328,37 @@ class AnnotationCanvas extends TatorElement
       if (localization.id in this._data._trackDb)
       {
         // Yup! It was. Use the REST API to PATCH the track with the new localization.
-        console.log("#TODO PATCHING the track with the new localization")
+        console.log("PATCHING the track with the new localization")
+
+        // Get the associated state/track ID
+        let trackId = this._activeTrack.id;
+
+        // Update the state/track via the REST API.
+        let patchData = {};
+        patchData.localization_ids_add = [newLocalizationId];
+
+        let stateRequestObj = {method: "PATCH",
+          ...this._undo._headers(),
+          body: JSON.stringify(patchData)};
+        console.info(patchData)
+
+        fetchRetry(`/rest/State/${trackId}`, stateRequestObj)
+        .then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+            else{
+          console.error("Error fetching updated data for state");
+              response.json()
+              .then(json => console.log(JSON.stringify(json)));
+            }
+        })
+        .then(() => {
+            // #TODO Do we need this?
+            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+            //                                  {composed: true,
+            //                                    detail: {enabled: false}}));
+        });
       }
       else
       {
@@ -3344,6 +3374,7 @@ class AnnotationCanvas extends TatorElement
         newState.localization_ids = [localization.id, newLocalizationId];
         newState.type = stateTypeId;
         newState.modified = true;
+        newState.frame = this.currentFrame();
 
         let stateRequestObj = {method: "POST",
           ...this._undo._headers(),
@@ -3361,9 +3392,7 @@ class AnnotationCanvas extends TatorElement
               .then(json => console.log(JSON.stringify(json)));
             }
         })
-        .then(json => {
-            let newStateId = json.id;
-
+        .then(() => {
             // #TODO Do we need this?
             //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
             //                                  {composed: true,
