@@ -1,9 +1,12 @@
 class FillTrack {
   constructor(videoDef, algoCanvas) {
     console.info("Processing = " + JSON.stringify(videoDef));
+    this._project = algoCanvas.activeLocalization.project;
     this._mediaId = algoCanvas.activeLocalization.media;
     this._width = videoDef.width;
     this._height = videoDef.height;
+    this._data = algoCanvas._data;
+    this._dataTypes = algoCanvas._data._dataTypes;
     this._newLocalizations = [];
 
     // Get the currently selected track.
@@ -58,16 +61,33 @@ class FillTrack {
   finalize() {
     console.info("Done algorithm");
     // Create new localizations.
-    // Clean up.
-    this._dst.delete();
-    this._hsvVec.delete();
-    this._roiHist.delete();
-    this._hsv.delete();
+    // Create new localizations.
+    fetchRetry("/rest/Localizations/" + this._project, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRFToken": getCookie("csrftoken"),
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(this._newLocalizations),
+    })
+    .then(async () => {
+      // Clean up.
+      this._dst.delete();
+      this._hsvVec.delete();
+      this._roiHist.delete();
+      this._hsv.delete();
+      // Update data after a second.
+      await new Promise(r => setTimeout(r, 1000));
+      this._data.updateType(this._dataTypes[this._localizationType]);
+    });
   }
 
   _setRoi(latest, frame) {
-    // Set the version.
+    // Set the version and type.
     this._version = latest.version;
+    this._localizationType = latest.meta;
 
     // Set location of window
     const x = Math.round(latest.x * this._width);
@@ -116,7 +136,7 @@ class FillTrack {
     // Buffer the localization to be saved to platform.
     this._newLocalizations.push({
       media_id: this._mediaId,
-      type: Number(this._track.meta.split("_")[1]),
+      type: Number(this._localizationType.split("_")[1]),
       x: this._trackWindow.x / this._width,
       y: this._trackWindow.y / this._height,
       width: this._trackWindow.width / this._width,
