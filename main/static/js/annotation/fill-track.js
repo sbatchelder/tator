@@ -61,7 +61,7 @@ class FillTrack {
   finalize() {
     console.info("Done algorithm");
     // Create new localizations.
-    fetchRetry("/rest/Localizations/" + this._project, {
+    const promise = fetchRetry("/rest/Localizations/" + this._project, {
       method: "POST",
       credentials: "same-origin",
       headers: {
@@ -96,6 +96,7 @@ class FillTrack {
         this._data.updateType(this._dataTypes[this._track.meta]);
       });
     });
+    return promise;
   }
 
   _setRoi(latest, frame) {
