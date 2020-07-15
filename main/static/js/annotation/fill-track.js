@@ -61,7 +61,6 @@ class FillTrack {
   finalize() {
     console.info("Done algorithm");
     // Create new localizations.
-    // Create new localizations.
     fetchRetry("/rest/Localizations/" + this._project, {
       method: "POST",
       credentials: "same-origin",
@@ -72,15 +71,30 @@ class FillTrack {
       },
       body: JSON.stringify(this._newLocalizations),
     })
-    .then(async () => {
-      // Clean up.
-      this._dst.delete();
-      this._hsvVec.delete();
-      this._roiHist.delete();
-      this._hsv.delete();
-      // Update data after a second.
-      await new Promise(r => setTimeout(r, 1000));
-      this._data.updateType(this._dataTypes[this._localizationType]);
+    .then(response => response.json())
+    .then(data => {
+      // Append new localizations to track.
+      fetchRetry("/rest/State/" + this._track.id, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRFToken": getCookie("csrftoken"),
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({'localization_ids_add': data.id}),
+      })
+      .then(async () => {
+        // Clean up.
+        this._dst.delete();
+        this._hsvVec.delete();
+        this._roiHist.delete();
+        this._hsv.delete();
+        // Update data after a second.
+        await new Promise(r => setTimeout(r, 1000));
+        this._data.updateType(this._dataTypes[this._localizationType]);
+        this._data.updateType(this._dataTypes[this._track.meta]);
+      });
     });
   }
 
