@@ -751,6 +751,10 @@ class VideoCanvas extends AnnotationCanvas {
       msg += `\tUNMASKED RENDERER = ${gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)}\n`;
       Utilities.sendNotification(msg, true);
     }
+
+    this.addEventListener("extendtrack", this.extendTrack.bind(this));
+    this.addEventListener("filltrack", this.fillTrack.bind(this));
+    this._sparseTrackFrameGap = 30;
   }
 
   refresh(forceSeekBuffer)
@@ -1719,6 +1723,333 @@ class VideoCanvas extends AnnotationCanvas {
   //////////////////////////////////
   /// End button handlers
   //////////////////////////////////
+
+  // Launch a feed forward algorithm that processes all frames
+  // A different paradigm could be used on single frame processing
+  // where the display canvas could be a valid output
+  // Params:
+  // urlToJs: URL to the *.js file. See 'example-ff-algo.js'
+  // startFrame: defaults to 0
+  // frameLimit: defaults to videoObject.num_frames
+  launchFFAlgo(urlToJs, startFrame, frameLimit)
+  {
+    if (this._videoObject == undefined)
+    {
+      console.error("Can't process FF-algos on images");
+      return;
+    }
+
+    // Load an evaluate the JS file
+    fetch(urlToJs)
+      .then((resp) => {return resp.text()})
+      .then((text) => {
+
+        // Evaluate the javascript
+        window.eval(text)
+
+        // Todo: Figure out if web component could work here
+        // with re-registration somehow.
+        let algo = algoFactory(this._videoObject, this);
+
+        let frameNumber = 0;
+        let numFrames = this._videoObject.num_frames;
+        if (startFrame)
+        {
+          frameNumber = startFrame;
+        }
+        if (frameLimit)
+        {
+          numFrames = frameLimit + frameNumber;
+        }
+        let frameIter = (frameIdx, source, width, height) => {
+          this.updateOffscreenBuffer(frameIdx, source, width, height);
+          // Display the latest + hold it
+          this._offscreenDraw.dispImage(true, true);
+          let gl = this._offscreenDraw.gl;
+          // Read back pixels into an array from the gl context
+          var pixels = new Uint8Array(gl.drawingBufferWidth *
+                                      gl.drawingBufferHeight * 4);
+          gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight,
+                        gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          // pixels now contains the frame data
+
+          // Can return a CustomEvent here to dispatch to higher level process
+          let event = algo.processFrame(frameIdx,
+                                        pixels);
+          if (event)
+          {
+            this.dispatchEvent(event);
+          }
+        };
+
+        let advance = () => {
+          this.seekFrame(frameNumber,frameIter).then(() => {
+            frameNumber+=1;
+            if (frameNumber < numFrames)
+            {
+              advance();
+            }
+            else
+            {
+              algo.finalize();
+              window.alert("Done algorithm")
+            }
+          });
+        };
+        advance();
+      });
+  }
+
+  // Function that calls the fill-track.js algorithm using the currently selected
+  // localization (which must be tied to the active track) and the current frame.
+  // It'll fill in the detections/localizations at the prescribed frame range
+  // and attach them to the active track.
+  fillTrack()
+  {
+    if (this.activeLocalization == null || this._activeTrack == null)
+    {
+      window.alert("Track fill ignored. Select an existing track's detection.")
+      return;
+    }
+
+    // Gather the frame information
+    const startFrame = this.currentFrame();
+    var numFrames = this._sparseTrackFrameGap;
+    var lastFrame = startFrame + numFrames;
+    if (lastFrame > this._numFrames - 1)
+    {
+      console.info("Reducing the number of fill frames due to length of video.")
+      numFrames = this._numFrames - startFrame;
+    }
+
+    // Kick off the algorithm.
+    this.launchFFAlgo("/static/js/annotation/fill-track.js", startFrame, numFrames);
+    window.alert("Launching fill track algorithm from frame " + startFrame + " to " + lastFrame);
+  }
+
+  // Function that generates extends the track and generates a key frame detection
+  // that is _sparseTrackFrameGap frames forward from the current frame.
+  // The track is selected and the video player moves forward to the new frame.
+  //
+  // If no localization is active and no track is active, an alert is created
+  //    informing the user the track extension is ignored and a detection must be created first.
+  //
+  // If no localization is active and a track is active, an alert is created
+  //    informing the user the track extension is ignored.
+  //    #TODO For future work, this probably should just change the state of the system to
+  //          draw a localization and add it to the current track.
+  //
+  // If there are not enough frames left in the video from the current frame, an alert is created
+  //    informing the user the track extension is ignored.
+  extendTrack()
+  {
+    if (this.activeLocalization == null)
+    {
+      if (this._activeTrack == null)
+      {
+        window.alert("Track extension ignored. Select an existing track or create a new detection prior to using this function.")
+        return;
+      }
+      else
+      {
+        window.alert("Track extension ignored. No detection selected in this frame for selected track.")
+        return;
+      }
+    }
+    console.info("Performing track extension");
+
+    const newFrame = this.currentFrame() + this._sparseTrackFrameGap;
+    if (newFrame > this._numFrames - 1)
+    {
+      window.alert("Frame " + newFrame + " is past the last frame of the video. Ignoring track extension.");
+      return;
+    }
+
+    // Create a localization at the new frame using the same position
+    // as the currently selected localization
+    const localization = this.activeLocalization
+    const localizationDescription = this.getObjectDescription(localization);
+    var newLocalization = AnnotationCanvas.updatePositions(localization, localizationDescription);
+    var newLocalizationId;
+
+    const savedAttributes = localization.attributes;
+    newLocalization = Object.assign(newLocalization, localization.attributes);
+    newLocalization.version = localization.version;
+    newLocalization.type = Number(localization.meta.split("_")[1]);
+    newLocalization.frame = newFrame;
+    newLocalization.modified = true;
+
+    // #TODO Revisit this. Not sure why sometimes media is there or why media_id is there isntead
+    if (localization.hasOwnProperty("media"))
+    {
+      newLocalization.media_id = localization.media;
+    }
+    else
+    {
+      newLocalization.media_id = localization.media_id;
+    }
+
+    // #TODO Revisit this. Probably could be pulled out somewhere else
+    //       There were inconsistent problems with pulling the project ID out of the active
+    //       localization (the project property sometimes wasn't there)
+    var project = this._undo.getAttribute("project-id")
+
+    var locRequstObj = {method: "POST",
+      ...this._undo._headers(),
+      body: JSON.stringify([newLocalization])};
+    console.info(locRequstObj)
+
+
+    // #TODO Do we need this?
+    //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+    //                                  {composed: true,
+     //                                   detail: {enabled: true}}));
+
+    // Create the localization via the REST API
+    fetchRetry(`/rest/Localizations/${project}`, locRequstObj)
+    .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        else{
+          console.error("Error fetching updated data for localization");
+          response.json()
+          .then(json => console.log(JSON.stringify(json)));
+
+          // #TODO Do we need this?
+          //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+          //                                 {composed: true,
+         //                                     detail: {enabled: false}}));
+        }
+    })
+    .then(json => {
+
+      // Update the cached data for the types we've updated (detections and tracks)
+      this.updateType(localizationDescription);
+
+      // Save the new localization ID to update the state later
+      newLocalizationId = json.id[0];
+
+      // First, get the state type based on the registered state types.
+      // #TODO I'm guessing this needs to be fixed at some point. It'll just grab
+      //       the first "state" object that has been registered. So there might
+      //       be undesired behavior if there are multiple state types in the project.
+      var stateTypeId;
+      var stateType;
+      for (let dataType in window.tator_video._data._dataTypes)
+      {
+        if (dataType.includes('state'))
+        {
+          stateType = dataType
+          stateTypeId = Number(dataType.split("_")[1]);
+          break;
+        }
+      }
+
+      // Now, determine if the selected localization was a part of a track or not
+      if (localization.id in this._data._trackDb)
+      {
+        // Yup! It was. Use the REST API to PATCH the track with the new localization.
+        console.log("PATCHING the track with the new localization")
+
+        // Get the associated state/track ID from the user selected track
+        let trackId = this._activeTrack.id;
+
+        // Update the state/track via the REST API.
+        let patchData = {};
+        patchData.localization_ids_add = [newLocalizationId];
+
+        let stateRequestObj = {method: "PATCH",
+          ...this._undo._headers(),
+          body: JSON.stringify(patchData)};
+        console.info(patchData)
+
+        fetchRetry(`/rest/State/${trackId}`, stateRequestObj)
+        .then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+            else{
+          console.error("Error fetching updated data for state");
+              response.json()
+              .then(json => console.log(JSON.stringify(json)));
+            }
+        })
+        .then(async() => {
+          this.updateType(this._data._dataTypes[stateType]);
+          
+          // #TODO This probably needs to change to something with retries on checking
+          //       the trackDb if it's been loaded into cache instead of just a flat timeout
+          await new Promise(r => setTimeout(r, 1000));
+          
+          // Ready to rock and roll. Select the new localization
+          const track = this._data._trackDb[newLocalizationId];
+          this._activeTrack = track
+          this.gotoFrame(newFrame);
+          this.dispatchEvent(new CustomEvent("select", {
+            detail: track,
+            composed: true,
+          }));
+            // #TODO Do we need this?
+            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+            //                                  {composed: true,
+            //                                    detail: {enabled: false}}));
+        });
+      }
+      else
+      {
+        // Nope, the localization is not a part of any track.
+        console.log("POSTING a new track with the localization")
+
+        // Create the state/track via the REST API.
+        // This assumes that the attributes are the same between the localization and the track.
+        let newState = Object.assign({}, savedAttributes)
+        newState.media_ids = [newLocalization.media_id];
+        newState.localization_ids = [localization.id, newLocalizationId];
+        newState.type = stateTypeId;
+        newState.modified = true;
+        newState.frame = this.currentFrame();
+
+        let stateRequestObj = {method: "POST",
+          ...this._undo._headers(),
+          body: JSON.stringify([newState])};
+        console.info(stateRequestObj)
+
+        fetchRetry(`/rest/States/${project}`, stateRequestObj)
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          }
+          else{
+          console.error("Error fetching updated data for state");
+              response.json()
+              .then(json => console.log(JSON.stringify(json)));
+          }
+        })
+        .then(async() => {
+          this.updateType(this._data._dataTypes[stateType]);
+          
+          // Necessary to wait for a little bit for the internal _trackDb to get updated.
+          // #TODO This probably needs to change to something with retries on checking
+          //       the trackDb if it's been loaded into cache instead of just a flat timeout
+          await new Promise(r => setTimeout(r, 1000));
+          
+          // Ready to rock and roll. Select the new localization
+          const track = this._data._trackDb[newLocalizationId];
+          this._activeTrack = track
+          this.gotoFrame(newFrame);
+          this.dispatchEvent(new CustomEvent("select", {
+            detail: track,
+            composed: true,
+          }));
+            // #TODO Do we need this?
+            //this.dispatchEvent(new CustomEvent("temporarilyMaskEdits",
+            //                                  {composed: true,
+            //                                    detail: {enabled: false}}));
+        });
+      }
+    });
+  }
 };
 
 customElements.define("video-canvas", VideoCanvas);

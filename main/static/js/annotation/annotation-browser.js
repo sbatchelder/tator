@@ -124,6 +124,9 @@ class AnnotationBrowser extends TatorElement {
     for (const typeId in this._framePanels) {
       this._framePanels[typeId].frameChange(frame);
     }
+    for (const typeId in this._entityPanels) {
+      this._entityPanels[typeId].frameChange(frame);
+    }
   }
 
   selectEntity(obj) {

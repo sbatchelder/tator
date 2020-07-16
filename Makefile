@@ -244,6 +244,7 @@ FILES = \
     node-uuid.js \
     StreamSaver.js \
     zip-stream.js \
+    opencv.js \
     util/get-cookie.js \
     util/identifying-attribute.js \
     util/fetch-retry.js \

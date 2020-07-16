@@ -775,6 +775,13 @@ class AnnotationCanvas extends TatorElement
           this.pause();
         }
       }
+
+      // Track extension shortcut. Available if a localization is selected or not.
+      if (event.ctrlKey && event.code == "KeyE")
+      {
+        event.stopPropagation();
+        this.dispatchEvent(new CustomEvent("extendtrack", {}));
+      }
     }
 
     if (this._mouseMode == MouseMode.QUERY)
@@ -830,6 +837,13 @@ class AnnotationCanvas extends TatorElement
 
     if (this._mouseMode == MouseMode.SELECT)
     {
+      // Track fill
+      if (event.ctrlKey && event.code == "KeyF")
+      {
+        event.stopPropagation();
+        this.dispatchEvent(new CustomEvent("filltrack", {}));
+      }
+
       if (event.code == 'Delete' && this._canEdit)
       {
         this.deleteLocalization(this.activeLocalization);
@@ -2279,11 +2293,21 @@ class AnnotationCanvas extends TatorElement
       let localization=null;
       if (objDescription.dtype=="box")
       {
-        localization=this.scaleToRelative(boxInfo);
-        requestObj.x = localization[0];
-        requestObj.y = localization[1];
-        requestObj.width = localization[2];
-        requestObj.height = localization[3];
+        if (dragInfo.useExact == null)
+        {
+          localization=this.scaleToRelative(boxInfo);
+          requestObj.x = localization[0];
+          requestObj.y = localization[1];
+          requestObj.width = localization[2];
+          requestObj.height = localization[3];
+        }
+        else
+        {
+          requestObj.x = dragInfo.x;
+          requestObj.y = dragInfo.y;
+          requestObj.width = dragInfo.width;
+          requestObj.height = dragInfo.height;
+        }
       }
       else if (objDescription.dtype=="line")
       {
@@ -2303,7 +2327,14 @@ class AnnotationCanvas extends TatorElement
         requestObj.y = localization[1];
       }
 
-      requestObj.frame = this.currentFrame();
+      if (dragInfo.useExact == null)
+      {
+        requestObj.frame = this.currentFrame();
+      }
+      else
+      {
+        requestObj.frame = dragInfo.frame;
+      }
     }
 
     if (this._redrawObj !== null && typeof this._redrawObj !== "undefined") {
