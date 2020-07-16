@@ -3409,16 +3409,22 @@ class AnnotationCanvas extends TatorElement
       // #TODO I'm guessing this needs to be fixed at some point. It'll just grab
       //       the first "state" object that has been registered. So there might
       //       be undesired behavior if there are multiple state types in the project.
-      var stateTypeId;
-      var stateType;
-      for (let dataType in window.tator_video._data._dataTypes)
+      var stateTypeId = null;
+      var stateType = null;
+      for (let dataType in this._data._dataTypes)
       {
-        if (dataType.includes('state'))
+        let dataTypeObj = this._data._dataTypes[dataType];
+        if (dataTypeObj.isTrack == true)
         {
           stateType = dataType
           stateTypeId = Number(dataType.split("_")[1]);
           break;
         }
+      }
+      if (stateTypeId == null)
+      {
+        window.alert("No valid track states found!");
+        return;
       }
 
       // Now, determine if the selected localization was a part of a track or not
