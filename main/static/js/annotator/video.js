@@ -1851,7 +1851,7 @@ class VideoCanvas extends AnnotationCanvas {
       }
       else
       {
-        window.alert("No detection in this frame for selected track. Create a detection to manually extend the track. #TODO")
+        window.alert("Track extension ignored. No detection selected in this frame for selected track.")
         return;
       }
     }
