@@ -173,14 +173,8 @@ class AttributePanel extends TatorElement {
       // based on the current frame number by picking the closest entry
       // (without going over)
       if (slider_index == -1) {
-        if (data.currentFrame > this._frame_max){
-          slider_index = this._slider.max;
-        }
-        else {
-          for (let i = 0; i < this._frames.length; i++) {
-            if (data.currentFrame > this._frames[i]) {
-              break;
-            }
+        for (let i = 0; i < this._frames.length; i++) {
+          if (this._frames[i] <= data.currentFrame) {
             slider_index = i;
           }
         }
