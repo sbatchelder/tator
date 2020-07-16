@@ -1792,6 +1792,7 @@ class VideoCanvas extends AnnotationCanvas {
             else
             {
               algo.finalize();
+              window.alert("Done algorithm")
             }
           });
         };
