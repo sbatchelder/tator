@@ -1799,7 +1799,10 @@ class VideoCanvas extends AnnotationCanvas {
       });
   }
 
-  // #TODO Information about this
+  // Function that calls the fill-track.js algorithm using the currently selected
+  // localization (which must be tied to the active track) and the current frame.
+  // It'll fill in the detections/localizations at the prescribed frame range
+  // and attach them to the active track.
   fillTrack()
   {
     if (this.activeLocalization == null || this._activeTrack == null)
@@ -1818,10 +1821,25 @@ class VideoCanvas extends AnnotationCanvas {
       numFrames = this._numFrames - startFrame;
     }
 
+    // Kick off the algorithm.
     this.launchFFAlgo("/static/js/annotation/fill-track.js", startFrame, numFrames);
+    window.alert("Launching fill track algorithm from frame " + startFrame + " to " + lastFrame);
   }
 
-  // #TODO Information about this
+  // Function that generates extends the track and generates a key frame detection
+  // that is _sparseTrackFrameGap frames forward from the current frame.
+  // The track is selected and the video player moves forward to the new frame.
+  //
+  // If no localization is active and no track is active, an alert is created
+  //    informing the user the track extension is ignored and a detection must be created first.
+  //
+  // If no localization is active and a track is active, an alert is created
+  //    informing the user the track extension is ignored.
+  //    #TODO For future work, this probably should just change the state of the system to
+  //          draw a localization and add it to the current track.
+  //
+  // If there are not enough frames left in the video from the current frame, an alert is created
+  //    informing the user the track extension is ignored.
   extendTrack()
   {
     if (this.activeLocalization == null)
@@ -1833,7 +1851,7 @@ class VideoCanvas extends AnnotationCanvas {
       }
       else
       {
-        window.alert("No detection selected in this frame. Create a detection to manually extend the track. #TODO")
+        window.alert("No detection in this frame for selected track. Create a detection to manually extend the track. #TODO")
         return;
       }
     }
@@ -1913,7 +1931,8 @@ class VideoCanvas extends AnnotationCanvas {
 
       // First, get the state type based on the registered state types.
       // #TODO I'm guessing this needs to be fixed at some point. It'll just grab
-      //       the first "state" object that has been registered.
+      //       the first "state" object that has been registered. So there might
+      //       be undesired behavior if there are multiple state types in the project.
       var stateTypeId;
       var stateType;
       for (let dataType in window.tator_video._data._dataTypes)
@@ -2009,6 +2028,7 @@ class VideoCanvas extends AnnotationCanvas {
         .then(async() => {
           this.updateType(this._data._dataTypes[stateType]);
           
+          // Necessary to wait for a little bit for the internal _trackDb to get updated.
           // #TODO This probably needs to change to something with retries on checking
           //       the trackDb if it's been loaded into cache instead of just a flat timeout
           await new Promise(r => setTimeout(r, 1000));

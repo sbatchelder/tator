@@ -779,8 +779,6 @@ class AnnotationCanvas extends TatorElement
       if (event.ctrlKey && event.code == "KeyE")
       {
         event.stopPropagation();
-
-        // #TODO Not sure if we can use some form of inheritance instead.
         this.dispatchEvent(new CustomEvent("extendtrack", {}));
       }
     }
@@ -842,8 +840,6 @@ class AnnotationCanvas extends TatorElement
       if (event.ctrlKey && event.code == "KeyF")
       {
         event.stopPropagation();
-
-        // #TODO Not sure if we can use some form of inheritance instead.
         this.dispatchEvent(new CustomEvent("filltrack", {}));
       }
 
