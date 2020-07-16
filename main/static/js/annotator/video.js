@@ -753,7 +753,8 @@ class VideoCanvas extends AnnotationCanvas {
     }
 
     this.addEventListener("extendtrack", this.extendTrack.bind(this));
-
+    this.addEventListener("filltrack", this.fillTrack.bind(this));
+    this._sparseTrackFrameGap = 30;
   }
 
   refresh(forceSeekBuffer)
@@ -1801,14 +1802,28 @@ class VideoCanvas extends AnnotationCanvas {
   // #TODO Information about this
   fillTrack()
   {
-    // #TODO Do great things
+    if (this.activeLocalization == null || this._activeTrack == null)
+    {
+      window.alert("Track fill ignored. Select an existing track's detection.")
+      return;
+    }
+
+    // Gather the frame information
+    const startFrame = this.currentFrame();
+    var numFrames = this._sparseTrackFrameGap;
+    var lastFrame = startFrame + numFrames;
+    if (lastFrame > this._numFrames - 1)
+    {
+      console.info("Reducing the number of fill frames due to length of video.")
+      numFrames = this._numFrames - startFrame;
+    }
+
+    this.launchFFAlgo("/static/js/annotation/fill-track.js", startFrame, numFrames);
   }
 
   // #TODO Information about this
   extendTrack()
   {
-    // TODO May not actually need this check because the mouse mode is already
-    //      in the selected state?
     if (this.activeLocalization == null)
     {
       if (this._activeTrack == null)
@@ -1824,13 +1839,10 @@ class VideoCanvas extends AnnotationCanvas {
     }
     console.info("Performing track extension");
 
-    // #TODO parameterize this?
-    const frameJump = 30;
-    const newFrame = this.currentFrame() + frameJump;
+    const newFrame = this.currentFrame() + this._sparseTrackFrameGap;
     if (newFrame > this._numFrames - 1)
     {
-      // #TODO Make a window alert
-      console.log("Frame " + newFrame + " is past the last frame. Not extending track.")
+      window.alert("Frame " + newFrame + " is past the last frame of the video. Ignoring track extension.");
       return;
     }
 

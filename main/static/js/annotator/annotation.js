@@ -842,15 +842,9 @@ class AnnotationCanvas extends TatorElement
       if (event.ctrlKey && event.code == "KeyF")
       {
         event.stopPropagation();
-        if (this.activeLocalization.id in this._data._trackDb)
-        {
-          console.info("Performing track fill")
-          // #TODO Do great things
-        }
-        else
-        {
-          console.info("Selected localization is not a part of any track. Track fill command ignored.")
-        }
+
+        // #TODO Not sure if we can use some form of inheritance instead.
+        this.dispatchEvent(new CustomEvent("filltrack", {}));
       }
 
       if (event.code == 'Delete' && this._canEdit)
