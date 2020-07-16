@@ -780,6 +780,7 @@ class AnnotationCanvas extends TatorElement
       if (event.ctrlKey && event.code == "KeyE")
       {
         event.stopPropagation();
+        event.preventDefault();
         this.dispatchEvent(new CustomEvent("extendtrack", {}));
       }
     }
@@ -841,6 +842,7 @@ class AnnotationCanvas extends TatorElement
       if (event.ctrlKey && event.code == "KeyF")
       {
         event.stopPropagation();
+        event.preventDefault();
         this.dispatchEvent(new CustomEvent("filltrack", {}));
       }
 
