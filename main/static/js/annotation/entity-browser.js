@@ -238,6 +238,14 @@ class EntityBrowser extends TatorElement {
     }
   }
 
+  frameChange(frame) {
+    if (this._dataType.isTrack) {
+      for (let groupId in this._attributes) {
+        this._attributes[groupId].setFrame(frame);
+      }
+    }
+  }
+
   _closeBesides(selector) {
     for (const other in this._selectors) {
       if (selector.getAttribute("name") != other) {
