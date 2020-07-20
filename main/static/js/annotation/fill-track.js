@@ -12,11 +12,24 @@ class FillTrack {
     // Get the currently selected track.
     this._track = algoCanvas._data._trackDb[algoCanvas.activeLocalization.id];
 
-    // Get localizations for this track.
-    this._localizations = algoCanvas._data._dataByType
+    // Get localizations that match the selected localization's type
+    let selectedLocalizations = algoCanvas._data._dataByType
                           .get(algoCanvas.activeLocalization.meta).filter(elem => {
       return algoCanvas._data._trackDb[elem.id].meta == this._track.meta;
     });
+
+    // With a list of localizations now curated, cycle through them and figure out
+    // which localizations belong to the selected track
+    this._localizations = [];
+    for (const idx in selectedLocalizations) {
+      let currentLocalization = selectedLocalizations[idx];
+      if (algoCanvas._data._trackDb[currentLocalization.id]) {
+        const sameTrackId = algoCanvas._data._trackDb[currentLocalization.id].id == this._track.id;
+        if (sameTrackId) {
+          this._localizations.push(currentLocalization);
+        }
+      }
+    }
 
     // Sort localizations by frame.
     this._localizations.sort((left, right) => {left.frame - right.frame});
@@ -31,7 +44,14 @@ class FillTrack {
     let latest = null;
     for (const localization of this._localizations) {
       if (localization.frame <= frameIdx) {
-        latest = localization;
+        if (latest) {
+          if (localization.frame > latest.frame) {
+            latest = localization;
+          }
+        }
+        else {
+          latest = localization;
+        }
       }
     }
    

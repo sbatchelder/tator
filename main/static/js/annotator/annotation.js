@@ -3547,7 +3547,7 @@ class AnnotationCanvas extends TatorElement
     // Gather the frame information
     const startFrame = this.currentFrame();
     var numFrames = this._sparseTrackFrameGap;
-    var lastFrame = startFrame + numFrames;
+    var lastFrame = startFrame + numFrames - 1;
     if (lastFrame > this._numFrames - 1)
     {
       console.info("Reducing the number of fill frames due to length of video.")
