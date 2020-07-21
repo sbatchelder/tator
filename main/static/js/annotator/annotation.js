@@ -1838,12 +1838,9 @@ class AnnotationCanvas extends TatorElement
     this.activeLocalization = localization;
     if (skipAnimation == true)
     {
-      if (muteOthers == true)
-      {
         this.emphasizeLocalization(localization,
                                    color.WHITE,
                                    muteOthers);
-      }
     }
     else
     {
@@ -1922,56 +1919,54 @@ class AnnotationCanvas extends TatorElement
     {
       muteOthers = false;
     }
-    listOfLocalizations.forEach(pair =>
-                                {
-                                  var localization = pair.obj;
-                                  var userColor = pair.color;
-                                  var meta = this.getObjectDescription(localization);
-                                  var width = meta.line_width;
-                                  // Make the line width appear as monitor pixels
-                                  width *= this._draw.displayToViewportScale()[0];
-                                  width = Math.round(width);
+    listOfLocalizations.forEach(pair => {
+      var localization = pair.obj;
+      var userColor = pair.color;
+      var meta = this.getObjectDescription(localization);
+      var width = meta.line_width;
+      // Make the line width appear as monitor pixels
+      width *= this._draw.displayToViewportScale()[0];
+      width = Math.round(width);
 
 
-                                  var drawColor = userColor;
-                                  if (userColor == undefined)
-                                  {
-                                    var drawColor = emphasisColor(localization);
-                                  }
+      var drawColor = userColor;
+      if (userColor == undefined)
+      {
+        var drawColor = emphasisColor(localization);
+      }
 
-                                  if (meta.dtype == "box")
-                                  {
-                                    var poly = this.localizationToPoly(localization);
-                                    this._draw.drawPolygon(poly, drawColor, width);
-                                  }
-                                  else if (meta.dtype == "line")
-                                  {
-                                    var line = this.localizationToLine(localization);
-                                    this._draw.drawLine(line[0], line[1], drawColor, width);
-                                  }
-                                  else if (meta.dtype == 'dot')
-                                  {
-                                    const dotWidth = Math.round(defaultDotWidth*this._draw.displayToViewportScale()[0]);
-                                    var line = this.localizationToDot(localization, dotWidth);
-                                    this._draw.drawLine(line[0], line[1], drawColor, dotWidth);
-                                  }
-                                  // Handle case when localization is in a track
-                                  if (localization.id in this._data._trackDb)
-                                  {
-                                    const track = this._data._trackDb[localization.id];
-                                    this._activeTrack = track
-                                    this.dispatchEvent(new CustomEvent("select", {
-                                      detail: track,
-                                      composed: true,
-                                    }));
-                                  } else {
-                                    this.dispatchEvent(new CustomEvent("select", {
-                                      detail: localization,
-                                      composed: true,
-                                    }));
-                                  }
-
-                                });
+      if (meta.dtype == "box")
+      {
+        var poly = this.localizationToPoly(localization);
+        this._draw.drawPolygon(poly, drawColor, width);
+      }
+      else if (meta.dtype == "line")
+      {
+        var line = this.localizationToLine(localization);
+        this._draw.drawLine(line[0], line[1], drawColor, width);
+      }
+      else if (meta.dtype == 'dot')
+      {
+        const dotWidth = Math.round(defaultDotWidth*this._draw.displayToViewportScale()[0]);
+        var line = this.localizationToDot(localization, dotWidth);
+        this._draw.drawLine(line[0], line[1], drawColor, dotWidth);
+      }
+      // Handle case when localization is in a track
+      if (localization.id in this._data._trackDb)
+      {
+        const track = this._data._trackDb[localization.id];
+        this._activeTrack = track
+        this.dispatchEvent(new CustomEvent("select", {
+          detail: track,
+          composed: true,
+        }));
+      } else {
+        this.dispatchEvent(new CustomEvent("select", {
+          detail: localization,
+          composed: true,
+        }));
+      }
+    });
 
     this._draw.dispImage(true, muteOthers);
 
@@ -1981,6 +1976,11 @@ class AnnotationCanvas extends TatorElement
   // Emphasis is applied to the localization
   emphasizeLocalization(localization, userColor, muteOthers)
   {
+    if (localization == null)
+    {
+      console.warning("Emphasizing null localization");
+      return;
+    }
     if (muteOthers)
     {
       var tempList=[]
@@ -2979,7 +2979,7 @@ class AnnotationCanvas extends TatorElement
       width = Math.round(width);
 
       localization.color = color.MEDIUM_GRAY;
-      alpha = 0.5*255;
+      let alpha = 0.5*255;
 
       if (type=='box')
       {
