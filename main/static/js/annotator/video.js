@@ -1773,7 +1773,9 @@ class VideoCanvas extends AnnotationCanvas {
 
           // Can return a CustomEvent here to dispatch to higher level process
           let event = algo.processFrame(frameIdx,
-                                        pixels);
+                                        pixels,
+                                        gl.drawingBufferWidth,
+                                        gl.drawingBufferHeight);
           if (event)
           {
             this.dispatchEvent(event);
@@ -1790,7 +1792,7 @@ class VideoCanvas extends AnnotationCanvas {
             else
             {
               algo.finalize();
-              window.alert("Done algorithm")
+              window.alert("Algorithm done")
             }
           });
         };

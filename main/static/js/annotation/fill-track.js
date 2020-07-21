@@ -13,10 +13,10 @@ class FillTrack {
     this._track = algoCanvas._data._trackDb[algoCanvas.activeLocalization.id];
 
     // Get localizations that match the selected localization's type
+    // #TODO There probably is a better way to do this (and the next step) instead
+    //       of just grabbing everything.
     let selectedLocalizations = algoCanvas._data._dataByType
-                          .get(algoCanvas.activeLocalization.meta).filter(elem => {
-      return algoCanvas._data._trackDb[elem.id].meta == this._track.meta;
-    });
+                          .get(algoCanvas.activeLocalization.meta);
 
     // With a list of localizations now curated, cycle through them and figure out
     // which localizations belong to the selected track
@@ -54,16 +54,18 @@ class FillTrack {
         }
       }
     }
-   
+
     // If the track contains no localizations from before this frame, take no action.
     if (latest === null) {
       return;
     }
+    this._localization_attributes = latest.attributes;
 
     // Convert frame data to a mat.
     const frame = cv.matFromArray(this._height, this._width, cv.CV_8UC4, frameData);
     cv.flip(frame, frame, 0);
-    
+    console.log(frame.size());
+
     if (latest.frame == frameIdx) {
       // If latest is for this current frame, set the mean shift ROI.
       console.info("Setting ROI with existing localization!");
@@ -124,7 +126,7 @@ class FillTrack {
     this._version = latest.version;
     this._localizationType = latest.meta;
 
-    // Set location of window
+    // Set location of window (flip around x/y)
     const x = Math.round(latest.x * this._width);
     const y = Math.round(latest.y * this._height);
     const w = Math.round(latest.width * this._width);
@@ -137,7 +139,7 @@ class FillTrack {
     cv.cvtColor(roi, hsvRoi, cv.COLOR_RGBA2RGB);
     cv.cvtColor(hsvRoi, hsvRoi, cv.COLOR_RGB2HSV);
     let mask = new cv.Mat();
-    let lowScalar = new cv.Scalar(30, 30, 0);
+    let lowScalar = new cv.Scalar(30, 30, 30);
     let highScalar = new cv.Scalar(180, 180, 180);
     let low = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), lowScalar);
     let high = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), highScalar);
@@ -166,10 +168,12 @@ class FillTrack {
     // Apply meanshift to get the new location
     // and it also returns number of iterations meanShift took to converge,
     // which is useless in this demo.
+    console.log(this._trackWindow);
     [, this._trackWindow] = cv.meanShift(this._dst, this._trackWindow, this._termCrit);
+    console.log(this._trackWindow);
 
     // Buffer the localization to be saved to platform.
-    this._newLocalizations.push({
+    var newLocalization = {
       media_id: this._mediaId,
       type: Number(this._localizationType.split("_")[1]),
       x: this._trackWindow.x / this._width,
@@ -178,7 +182,11 @@ class FillTrack {
       height: this._trackWindow.height / this._height,
       frame: frameIdx,
       version: this._version,
-    });
+    };
+
+    newLocalization = {...newLocalization, ...this._localization_attributes};
+
+    this._newLocalizations.push(newLocalization);
 
   }
 }
