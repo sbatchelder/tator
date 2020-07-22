@@ -35,7 +35,7 @@ class FillTrack {
     this._localizations.sort((left, right) => {left.frame - right.frame});
 
     // Setup the termination criteria, either 10 iteration or move by atleast 1 pt
-    this._termCrit = new cv.TermCriteria(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 1, 1);
+    this._termCrit = new cv.TermCriteria(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 1);
   }
 
   processFrame(frameIdx, frameData) {
@@ -64,7 +64,6 @@ class FillTrack {
     // Convert frame data to a mat.
     const frame = cv.matFromArray(this._height, this._width, cv.CV_8UC4, frameData);
     cv.flip(frame, frame, 0);
-    console.log(frame.size());
 
     if (latest.frame == frameIdx) {
       // If latest is for this current frame, set the mean shift ROI.
@@ -78,6 +77,9 @@ class FillTrack {
 
     // Clean up.
     frame.delete();
+    console.log("done processing frame");
+
+    return null;
   }
 
   finalize() {
@@ -139,7 +141,7 @@ class FillTrack {
     cv.cvtColor(roi, hsvRoi, cv.COLOR_RGBA2RGB);
     cv.cvtColor(hsvRoi, hsvRoi, cv.COLOR_RGB2HSV);
     let mask = new cv.Mat();
-    let lowScalar = new cv.Scalar(0, 30, 30);
+    let lowScalar = new cv.Scalar(0, 10, 10);
     let highScalar = new cv.Scalar(180, 255, 255);
     let low = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), lowScalar);
     let high = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), highScalar);
@@ -148,10 +150,7 @@ class FillTrack {
     let hsvRoiVec = new cv.MatVector();
     hsvRoiVec.push_back(hsvRoi);
     cv.calcHist(hsvRoiVec, [0], mask, this._roiHist, [180], [0, 180]);
-    cv.normalize(this._roiHist, this._roiHist, 0, 255, cv.NORM_MINMAX);
-
-    console.log("lowScalar: " + lowScalar);
-    console.log("highScalar: " + highScalar);
+    cv.normalize(this._roiHist, this._roiHist, 0, 180, cv.NORM_MINMAX);
 
     // delete useless mats.
     roi.delete(); hsvRoi.delete(); mask.delete(); low.delete(); high.delete(); hsvRoiVec.delete();
@@ -172,8 +171,10 @@ class FillTrack {
     // and it also returns number of iterations meanShift took to converge,
     // which is useless in this demo.
     console.log(this._trackWindow);
-    [, this._trackWindow] = cv.meanShift(this._dst, this._trackWindow, this._termCrit);
+    let trackBox = null;
+    [trackBox, this._trackWindow] = cv.CamShift(this._dst, this._trackWindow, this._termCrit);
     console.log(this._trackWindow);
+    console.log(trackBox);
 
     // Buffer the localization to be saved to platform.
     var newLocalization = {

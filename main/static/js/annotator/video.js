@@ -753,6 +753,7 @@ class VideoCanvas extends AnnotationCanvas {
     }
 
     this._sparseTrackFrameGap = 30;
+    this._stopFFAlgoWatchdog(); // Initialize laucnhFFAlgoWatchdog parameters
   }
 
   refresh(forceSeekBuffer)
@@ -1722,6 +1723,42 @@ class VideoCanvas extends AnnotationCanvas {
   /// End button handlers
   //////////////////////////////////
 
+  _launchFFAlgoWatchdog(urlToJs, startFrame, frameLimit)
+  {
+    this._watchdogActive = true;
+    this._watchdogRetryCount++;
+
+    this._ffalgoParams = {};
+    this._ffalgoParams.urlToJs = urlToJs;
+    this._ffalgoParams.startFrame = startFrame;
+    this._ffalgoParams.frameLimit = frameLimit;
+  }
+
+  _startWatchdogTimer() {
+    this._watchDogTimeout = setTimeout(function(){
+      if (this._watchdogRetryCount < this._watchDogMaxRetries) {
+        console.log("launchFFAlgoWatchdog timeout triggered --- re-launching launchFFAlgo");
+        this.launchFFAlgo(this._ffalgoParams.urlToJs, this._ffalgoParams.startFrame, this._ffalgoParams.frameLimit, true);
+      }
+      else {
+        window.alert("Error running algorithm: " + this._ffalgoParams.urlToJs);
+        self._stopFFAlgoWatchdog();
+      }
+    }.bind(this), 10000);
+    console.log("starting ffalgowatchdog timer with id: " + this._watchDogTimeout);
+  }
+
+  _clearWatchdogTimer() {
+    console.log("clearing ffalgowatchdog timer with id: " + this._watchDogTimeout);
+    clearTimeout(this._watchDogTimeout);
+  }
+
+  _stopFFAlgoWatchdog() {
+    this._watchdogActive = false;
+    this._watchdogRetryCount = -1;
+    this._watchDogMaxRetries = 1;
+  }
+
   // Launch a feed forward algorithm that processes all frames
   // A different paradigm could be used on single frame processing
   // where the display canvas could be a valid output
@@ -1729,13 +1766,21 @@ class VideoCanvas extends AnnotationCanvas {
   // urlToJs: URL to the *.js file. See 'example-ff-algo.js'
   // startFrame: defaults to 0
   // frameLimit: defaults to videoObject.num_frames
-  launchFFAlgo(urlToJs, startFrame, frameLimit)
+  // watchDogRetry: If this exists, it'll be true and is an explicit retry from the watchdog
+  //                If it doesn't exist, assume it some external call.
+  launchFFAlgo(urlToJs, startFrame, frameLimit, watchDogRetry)
   {
     if (this._videoObject == undefined)
     {
       console.error("Can't process FF-algos on images");
       return;
     }
+
+    if (this._watchDogActive && !watchDogRetry) {
+      console.error("Algorithm currently running. Ignoring launchFFAlgo() command.");
+      return;
+    }
+    this._launchFFAlgoWatchdog(urlToJs, startFrame, frameLimit);
 
     // Load an evaluate the JS file
     fetch(urlToJs)
@@ -1767,15 +1812,14 @@ class VideoCanvas extends AnnotationCanvas {
           // Read back pixels into an array from the gl context
           var pixels = new Uint8Array(gl.drawingBufferWidth *
                                       gl.drawingBufferHeight * 4);
+
           gl.readPixels(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight,
                         gl.RGBA, gl.UNSIGNED_BYTE, pixels);
           // pixels now contains the frame data
 
           // Can return a CustomEvent here to dispatch to higher level process
           let event = algo.processFrame(frameIdx,
-                                        pixels,
-                                        gl.drawingBufferWidth,
-                                        gl.drawingBufferHeight);
+                                        pixels);
           if (event)
           {
             this.dispatchEvent(event);
@@ -1784,6 +1828,9 @@ class VideoCanvas extends AnnotationCanvas {
 
         let advance = () => {
           this.seekFrame(frameNumber,frameIter).then(() => {
+            this._clearWatchdogTimer();
+            this._startWatchdogTimer();
+
             frameNumber+=1;
             if (frameNumber < numFrames)
             {
@@ -1792,7 +1839,9 @@ class VideoCanvas extends AnnotationCanvas {
             else
             {
               algo.finalize();
-              window.alert("Algorithm done")
+              this._clearWatchdogTimer();
+              this._stopFFAlgoWatchdog();
+              window.alert("Algorithm done");
             }
           });
         };
