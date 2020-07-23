@@ -1742,7 +1742,7 @@ class VideoCanvas extends AnnotationCanvas {
       }
       else {
         window.alert("Error running algorithm: " + this._ffalgoParams.urlToJs);
-        self._stopFFAlgoWatchdog();
+        this._stopFFAlgoWatchdog();
       }
     }.bind(this), 10000);
     console.log("starting ffalgowatchdog timer with id: " + this._watchDogTimeout);
@@ -1756,7 +1756,7 @@ class VideoCanvas extends AnnotationCanvas {
   _stopFFAlgoWatchdog() {
     this._watchdogActive = false;
     this._watchdogRetryCount = -1;
-    this._watchDogMaxRetries = 1;
+    this._watchDogMaxRetries = 2;
   }
 
   // Launch a feed forward algorithm that processes all frames

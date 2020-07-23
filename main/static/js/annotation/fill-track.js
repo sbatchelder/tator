@@ -35,7 +35,7 @@ class FillTrack {
     this._localizations.sort((left, right) => {left.frame - right.frame});
 
     // Setup the termination criteria, either 10 iteration or move by atleast 1 pt
-    this._termCrit = new cv.TermCriteria(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 1);
+    this._termCrit = new cv.TermCriteria(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 1, 1);
   }
 
   processFrame(frameIdx, frameData) {
@@ -141,7 +141,7 @@ class FillTrack {
     cv.cvtColor(roi, hsvRoi, cv.COLOR_RGBA2RGB);
     cv.cvtColor(hsvRoi, hsvRoi, cv.COLOR_RGB2HSV);
     let mask = new cv.Mat();
-    let lowScalar = new cv.Scalar(0, 10, 10);
+    let lowScalar = new cv.Scalar(0, 0, 0);
     let highScalar = new cv.Scalar(180, 255, 255);
     let low = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), lowScalar);
     let high = new cv.Mat(hsvRoi.rows, hsvRoi.cols, hsvRoi.type(), highScalar);
@@ -149,8 +149,8 @@ class FillTrack {
     this._roiHist = new cv.Mat();
     let hsvRoiVec = new cv.MatVector();
     hsvRoiVec.push_back(hsvRoi);
-    cv.calcHist(hsvRoiVec, [0], mask, this._roiHist, [180], [0, 180]);
-    cv.normalize(this._roiHist, this._roiHist, 0, 180, cv.NORM_MINMAX);
+    cv.calcHist(hsvRoiVec, [0, 1], mask, this._roiHist, [18, 25], [0, 180, 0, 255]);
+    cv.normalize(this._roiHist, this._roiHist, 0, 255, cv.NORM_MINMAX);
 
     // delete useless mats.
     roi.delete(); hsvRoi.delete(); mask.delete(); low.delete(); high.delete(); hsvRoiVec.delete();
@@ -165,7 +165,7 @@ class FillTrack {
 
     cv.cvtColor(frame, this._hsv, cv.COLOR_RGBA2RGB);
     cv.cvtColor(this._hsv, this._hsv, cv.COLOR_RGB2HSV);
-    cv.calcBackProject(this._hsvVec, [0], this._roiHist, this._dst, [0, 180], 1);
+    cv.calcBackProject(this._hsvVec, [0, 1], this._roiHist, this._dst, [0, 180, 0, 255], 1);
 
     // Apply meanshift to get the new location
     // and it also returns number of iterations meanShift took to converge,
