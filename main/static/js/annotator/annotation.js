@@ -1127,21 +1127,24 @@ class AnnotationCanvas extends TatorElement
       {
         drawColor = color.hexToRgb(trackColor);
       }
-      if (meta.colorMap.defaultFill)
+      if (meta.colorMap)
       {
-        decodeFill(meta.colorMap.defaultFill);
-      }
-      var keyname = meta.colorMap.key;
-      if (keyname && keyname in this._data._trackDb[localization.id].attributes)
-      {
-        var keyvalue=localization.attributes[keyname];
-        if (meta.colorMap.map && keyvalue in meta.colorMap.map)
+        if (meta.colorMap.defaultFill)
         {
-          decodeColor(meta.colorMap.map[keyvalue]);
+          decodeFill(meta.colorMap.defaultFill);
         }
-        if (meta.colorMap.fillMap && keyvalue in meta.colorMap.fillMap)
+        var keyname = meta.colorMap.key;
+        if (keyname && keyname in this._data._trackDb[localization.id].attributes)
         {
-          decodeFill(meta.colorMap.fillMap[keyvalue]);
+          var keyvalue=localization.attributes[keyname];
+          if (meta.colorMap.map && keyvalue in meta.colorMap.map)
+          {
+            decodeColor(meta.colorMap.map[keyvalue]);
+          }
+          if (meta.colorMap.fillMap && keyvalue in meta.colorMap.fillMap)
+          {
+            decodeFill(meta.colorMap.fillMap[keyvalue]);
+          }
         }
       }
       fill.color = drawColor;
@@ -3049,13 +3052,13 @@ class AnnotationCanvas extends TatorElement
           else if (type == 'line')
           {
             var line = this.localizationToLine(localization, drawContext, roi);
-            drawContext.drawLine(line[0], line[1], localization.color, width, alpha);
+            drawContext.drawLine(line[0], line[1], localization.color, width, colorInfo.alpha);
           }
           else if (type == 'dot')
           {
             const dotWidth = Math.round(defaultDotWidth*this._draw.displayToViewportScale()[0]);
             var line = this.localizationToDot(localization, dotWidth, drawContext, roi);
-            drawContext.drawLine(line[0], line[1], localization.color, dotWidth, alpha);
+            drawContext.drawLine(line[0], line[1], localization.color, dotWidth, colorInfo.alpha);
           }
           else
           {
