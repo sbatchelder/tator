@@ -843,7 +843,7 @@ class AnnotationCanvas extends TatorElement
       {
         event.stopPropagation();
         event.preventDefault();
-        this.fillTrack();
+        this.fillTrackWithFaceAlgo();
       }
 
       if (event.code == 'Delete' && this._canEdit)
@@ -3558,4 +3558,29 @@ class AnnotationCanvas extends TatorElement
     this.launchFFAlgo("/static/js/annotation/fill-track.js", startFrame, numFrames);
     window.alert("Launching fill track algorithm from frame " + startFrame + " to " + lastFrame);
   }
+
+
+  fillTrackWithFaceAlgo()
+  {
+    if (this.activeLocalization == null || this._activeTrack == null)
+    {
+      window.alert("Track fill (face detection algorithm) ignored. Select an existing track's detection.")
+      return;
+    }
+
+    // Gather the frame information
+    const startFrame = this.currentFrame();
+    var numFrames = this._sparseTrackFrameGap;
+    var lastFrame = startFrame + numFrames - 1;
+    if (lastFrame > this._numFrames - 1)
+    {
+      console.info("Reducing the number of fill frames due to length of video.")
+      numFrames = this._numFrames - startFrame;
+    }
+
+    // Kick off the algorithm.
+    this.launchFFAlgo("/static/js/annotation/fill-track-facealgo.js", startFrame, numFrames);
+    window.alert("Launching fill track algorithm (using face detection algorithm) from frame " + startFrame + " to " + lastFrame);
+  }
+
 }

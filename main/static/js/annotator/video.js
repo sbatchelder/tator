@@ -754,6 +754,18 @@ class VideoCanvas extends AnnotationCanvas {
 
     this._sparseTrackFrameGap = 30;
     this._stopFFAlgoWatchdog(); // Initialize laucnhFFAlgoWatchdog parameters
+
+    //document.head.appendChild('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>');
+    //document.head.appendChild('<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>');
+    var sc = document.createElement("script");
+    sc.setAttribute("src", "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs");
+    sc.setAttribute("type", "text/javascript");
+    document.head.appendChild(sc);
+
+    var sc = document.createElement("script");
+    sc.setAttribute("src", "https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface");
+    sc.setAttribute("type", "text/javascript");
+    document.head.appendChild(sc);
   }
 
   refresh(forceSeekBuffer)
@@ -1736,7 +1748,7 @@ class VideoCanvas extends AnnotationCanvas {
 
   _startWatchdogTimer() {
     this._watchDogTimeout = setTimeout(function(){
-      if (this._watchdogRetryCount < this._watchDogMaxRetries) {
+      if (this._watchdogRetryCount < this._watchdogMaxRetries) {
         console.log("launchFFAlgoWatchdog timeout triggered --- re-launching launchFFAlgo");
         this.launchFFAlgo(this._ffalgoParams.urlToJs, this._ffalgoParams.startFrame, this._ffalgoParams.frameLimit, true);
       }
@@ -1756,7 +1768,7 @@ class VideoCanvas extends AnnotationCanvas {
   _stopFFAlgoWatchdog() {
     this._watchdogActive = false;
     this._watchdogRetryCount = -1;
-    this._watchDogMaxRetries = 2;
+    this._watchdogMaxRetries = 2;
   }
 
   // Launch a feed forward algorithm that processes all frames
@@ -1766,9 +1778,9 @@ class VideoCanvas extends AnnotationCanvas {
   // urlToJs: URL to the *.js file. See 'example-ff-algo.js'
   // startFrame: defaults to 0
   // frameLimit: defaults to videoObject.num_frames
-  // watchDogRetry: If this exists, it'll be true and is an explicit retry from the watchdog
+  // watchdogRetry: If this exists, it'll be true and is an explicit retry from the watchdog
   //                If it doesn't exist, assume it some external call.
-  launchFFAlgo(urlToJs, startFrame, frameLimit, watchDogRetry)
+  async launchFFAlgo(urlToJs, startFrame, frameLimit, watchdogRetry)
   {
     if (this._videoObject == undefined)
     {
@@ -1776,7 +1788,7 @@ class VideoCanvas extends AnnotationCanvas {
       return;
     }
 
-    if (this._watchDogActive && !watchDogRetry) {
+    if (this._watchDogActive && !watchdogRetry) {
       console.error("Algorithm currently running. Ignoring launchFFAlgo() command.");
       return;
     }
@@ -1785,14 +1797,18 @@ class VideoCanvas extends AnnotationCanvas {
     // Load an evaluate the JS file
     fetch(urlToJs)
       .then((resp) => {return resp.text()})
-      .then((text) => {
+      .then(async (text) => {
 
         // Evaluate the javascript
         window.eval(text)
 
         // Todo: Figure out if web component could work here
         // with re-registration somehow.
-        let algo = algoFactory(this._videoObject, this);
+        let algo = await algoFactory(this._videoObject, this);
+
+        if (algo.init){
+          await algo.init();
+        }
 
         let frameNumber = 0;
         let numFrames = this._videoObject.num_frames;
@@ -1804,7 +1820,8 @@ class VideoCanvas extends AnnotationCanvas {
         {
           numFrames = frameLimit + frameNumber;
         }
-        let frameIter = (frameIdx, source, width, height) => {
+
+        let frameIter = async (frameIdx, source, width, height) => {
           this.updateOffscreenBuffer(frameIdx, source, width, height);
           // Display the latest + hold it
           this._offscreenDraw.dispImage(true, true);
@@ -1818,8 +1835,7 @@ class VideoCanvas extends AnnotationCanvas {
           // pixels now contains the frame data
 
           // Can return a CustomEvent here to dispatch to higher level process
-          let event = algo.processFrame(frameIdx,
-                                        pixels);
+          let event = await algo.processFrame(frameIdx, pixels, this._offscreenDraw.viewport);
           if (event)
           {
             this.dispatchEvent(event);
