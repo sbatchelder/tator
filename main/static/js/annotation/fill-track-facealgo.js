@@ -86,8 +86,19 @@ class FillTrackFace {
     for (const prediction of predictions) {
 
       if (prediction.probability[0] > 0.9) {
-        const x = prediction.topLeft[0];
-        const y = prediction.topLeft[1];
+
+        // Use the topLeft/bottomRight. Although for some reason, there might be
+        // negative numbers here which will cause a problem
+        var x = prediction.topLeft[0];
+        var y = prediction.topLeft[1];
+
+        if (x < 0){
+          x = 0;
+        }
+        if (y < 0){
+          y = 0;
+        }
+
         const width = prediction.bottomRight[0] - x;
         const height = prediction.bottomRight[1] - y;
 
