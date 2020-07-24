@@ -7,6 +7,8 @@
     <link rel="stylesheet" type="text/css" href={% static "css/tator/tator.min.css" %} />
     {% settings_value "USE_MIN_JS" as settings_min_js %}
     {% if not settings_min_js %}
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>
     <script src={% static "js/reconnecting-websocket.min.js" %}></script>
     <script src={% static "js/node-uuid.js" %}></script>
     <script src={% static "js/StreamSaver.js" %}></script>

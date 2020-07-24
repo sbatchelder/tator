@@ -757,15 +757,15 @@ class VideoCanvas extends AnnotationCanvas {
 
     //document.head.appendChild('<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>');
     //document.head.appendChild('<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"></script>');
-    var sc = document.createElement("script");
-    sc.setAttribute("src", "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs");
-    sc.setAttribute("type", "text/javascript");
-    document.head.appendChild(sc);
+    //var sc = document.createElement("script");
+    //sc.setAttribute("src", "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs");
+    //sc.setAttribute("type", "text/javascript");
+    //document.head.appendChild(sc);
 
-    var sc = document.createElement("script");
-    sc.setAttribute("src", "https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface");
-    sc.setAttribute("type", "text/javascript");
-    document.head.appendChild(sc);
+    //var sc = document.createElement("script");
+    //sc.setAttribute("src", "https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface");
+    //sc.setAttribute("type", "text/javascript");
+    //document.head.appendChild(sc);
   }
 
   refresh(forceSeekBuffer)
