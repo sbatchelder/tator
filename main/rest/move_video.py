@@ -20,6 +20,8 @@ from ..uploads import get_destination_path
 from ..uploads import get_file_path
 from ..uploads import make_symlink
 
+from ._attributes import patch_attributes
+from ._attributes import validate_attributes
 from ._base_views import BaseListView
 from ._permissions import ProjectTransferPermission
 
@@ -143,6 +145,14 @@ class MoveVideoAPI(BaseListView):
                     user=self.request.user.pk,
                     extra_params=[]
                 )
+
+                params_attrs = {'attributes':{
+                    alg_on_archival: alg_name,
+                    alg_on_archival_launched : True
+                }}
+                new_attrs = validate_attributes(params_attrs, media)
+                media = patch_attributes(new_attrs, media)
+                media.save()
 
                 response_data = {'message': f"Moved video for media {params['id']} and launched algorithm {alg_name}!",
                                 'id': params['id']}
