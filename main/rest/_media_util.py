@@ -23,22 +23,36 @@ class MediaUtil:
         self._segment_info = None
 
         if video.media_files:
-            if quality is None:
-                quality_idx = 0
-            else:
-                max_delta = sys.maxsize
-                for idx, media_info in enumerate(video.media_files["streaming"]):
-                    delta = abs(quality-media_info['resolution'][0])
-                    if delta < max_delta:
-                        quality_idx = idx
-            self._video_file = video.media_files["streaming"][quality_idx]["path"]
-            self._height = video.media_files["streaming"][quality_idx]["resolution"][0]
-            self._width = video.media_files["streaming"][quality_idx]["resolution"][1]
-            segment_file = video.media_files["streaming"][quality_idx]["segment_info"]
-            with open(segment_file, 'r') as f_p:
-                self._segment_info = json.load(f_p)
-                self._moof_data = [(i,x) for i,x in enumerate(self._segment_info
-                                                              ['segments']) if x['name'] == 'moof']
+            use_archival = False
+            if "streaming" in video.media_files:
+                if quality is None:
+                    quality_idx = 0
+                else:
+                    max_delta = sys.maxsize
+                    for idx, media_info in enumerate(video.media_files["streaming"]):
+                        delta = abs(quality-media_info['resolution'][0])
+                        if delta < max_delta:
+                            quality_idx = idx
+                self._video_file = video.media_files["streaming"][quality_idx]["path"]
+                self._height = video.media_files["streaming"][quality_idx]["resolution"][0]
+                self._width = video.media_files["streaming"][quality_idx]["resolution"][1]
+                segment_file = video.media_files["streaming"][quality_idx]["segment_info"]
+                with open(segment_file, 'r') as f_p:
+                    self._segment_info = json.load(f_p)
+                    self._moof_data = [(i,x) for i,x in enumerate(self._segment_info
+                                                                ['segments']) if x['name'] == 'moof']
+
+            # It's possible the best resolution available is not great for algorithm processing,
+            # so use the archived video instead. Use archived video if streaming resolution
+            # is less than half the archived video and the height is less than 720
+            if self._height < 0.5 * video.media_files["archival"]["resolution"][0] and self._height < 720.0:
+                use_archival = True
+
+            if use_archival:
+                # Utilize the archived video if there are no streaming options
+                self._video_file = video.media_files["archival"]
+                self._height = video.media_files["archival"]["resolution"][0]
+                self._width = video.media_files["archival"]["resolution"][1]
         elif video.original:
             video_file = video.original
             self._height = video.height

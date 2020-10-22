@@ -6,9 +6,13 @@ from uuid import uuid1
 
 from rest_framework.authtoken.models import Token
 from django.conf import settings
+from django.http import Http404
 from urllib import parse as urllib_parse
 
+from ..kube import TatorAlgorithm
+from ..models import Algorithm
 from ..models import Media
+from ..models import MediaType
 from ..schema import MoveVideoSchema
 from ..cache import TatorCache
 from ..uploads import download_uploaded_file
@@ -51,6 +55,7 @@ class MoveVideoAPI(BaseListView):
         # Determine the move paths and update media_files with new paths.
         media_files = params['media_files']
         move_list = []
+        moved_archival = False
         if 'archival' in media_files:
             for video_def in media_files['archival']:
 
@@ -66,6 +71,7 @@ class MoveVideoAPI(BaseListView):
                 make_symlink(video_def['url'], token, dst)
                 video_def['path'] = dst
                 del video_def['url']
+                moved_archival = True
         if 'streaming' in media_files:
             for video_def in media_files['streaming']:
                 uuid = str(uuid1())
@@ -92,6 +98,55 @@ class MoveVideoAPI(BaseListView):
 
         response_data = {'message': f"Moved video for media {params['id']}!",
                          'id': params['id']}
+
+        if moved_archival:
+
+            run_algo = False
+            alg_on_archival = 'Algorithm On Archival'
+            alg_on_archival_launched = 'Algorithm On Archival Launched'
+
+            if alg_on_archival in media.attributes and alg_on_archival_launched in media.attributes:
+                if media.attributes[alg_on_archival_launched] == False:
+                    run_algo = True
+                    alg_name = media.attributes[alg_on_archival]
+
+            else:
+                media_type_obj = MediaType.objects.get(pk=media.meta_id)
+                
+                found_alg_on_archival = False
+                found_alg_on_archival_launched = False
+                for attr_type in media_type_obj.attribute_types:
+                    if attr_type['name'] == alg_on_archival:
+                        found_alg_on_archival = True
+                        alg_name = attr_type['default']
+
+                    elif attr_type['name'] == alg_on_archival_launched:
+                        found_alg_on_archival_launched = True
+                
+                run_algo = found_alg_on_archival and found_alg_on_archival_launched
+
+            if run_algo:
+                alg_obj = Algorithm.objects.filter(project__id=project)
+                alg_obj = alg_obj.filter(name=alg_name)
+                if len(alg_obj) != 1:
+                    raise Http404
+                alg_obj = alg_obj[0]
+                submitter = TatorAlgorithm(alg_obj)
+                sections = media.attributes['tator_user_sections']
+                alg_response = submitter.start_algorithm(
+                    media_ids=f"{media.id}",
+                    sections=sections,
+                    gid=media.gid,
+                    uid=media.uid,
+                    token=token,
+                    project=project,
+                    user=self.request.user.pk,
+                    extra_params=[]
+                )
+
+                response_data = {'message': f"Moved video for media {params['id']} and launched algorithm {alg_name}!",
+                                'id': params['id']}
+
         return response_data
         
     def get_queryset(self):
