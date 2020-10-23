@@ -101,61 +101,65 @@ class MoveVideoAPI(BaseListView):
         response_data = {'message': f"Moved video for media {params['id']}!",
                          'id': params['id']}
 
-        if moved_archival:
+        try:
+            if moved_archival:
 
-            run_algo = False
-            alg_on_archival = 'Algorithm On Archival'
-            alg_on_archival_launched = 'Algorithm On Archival Launched'
+                run_algo = False
+                alg_on_archival = 'Algorithm On Archival'
+                alg_on_archival_launched = 'Algorithm On Archival Launched'
 
-            if alg_on_archival in media.attributes and alg_on_archival_launched in media.attributes:
-                if media.attributes[alg_on_archival_launched] == False:
-                    run_algo = True
-                    alg_name = media.attributes[alg_on_archival]
+                if alg_on_archival in media.attributes and alg_on_archival_launched in media.attributes:
+                    if media.attributes[alg_on_archival_launched] == False:
+                        run_algo = True
+                        alg_name = media.attributes[alg_on_archival]
 
-            else:
-                media_type_obj = MediaType.objects.get(pk=media.meta_id)
-                
-                found_alg_on_archival = False
-                found_alg_on_archival_launched = False
-                for attr_type in media_type_obj.attribute_types:
-                    if attr_type['name'] == alg_on_archival:
-                        found_alg_on_archival = True
-                        alg_name = attr_type['default']
+                else:
+                    media_type_obj = MediaType.objects.get(pk=media.meta_id)
+                    
+                    found_alg_on_archival = False
+                    found_alg_on_archival_launched = False
+                    for attr_type in media_type_obj.attribute_types:
+                        if attr_type['name'] == alg_on_archival:
+                            found_alg_on_archival = True
+                            alg_name = attr_type['default']
 
-                    elif attr_type['name'] == alg_on_archival_launched:
-                        found_alg_on_archival_launched = True
-                
-                run_algo = found_alg_on_archival and found_alg_on_archival_launched
+                        elif attr_type['name'] == alg_on_archival_launched:
+                            found_alg_on_archival_launched = True
+                    
+                    run_algo = found_alg_on_archival and found_alg_on_archival_launched
 
-            if run_algo:
-                alg_obj = Algorithm.objects.filter(project__id=project)
-                alg_obj = alg_obj.filter(name=alg_name)
-                if len(alg_obj) != 1:
-                    raise Http404
-                alg_obj = alg_obj[0]
-                submitter = TatorAlgorithm(alg_obj)
-                sections = media.attributes['tator_user_sections']
-                alg_response = submitter.start_algorithm(
-                    media_ids=f"{media.id}",
-                    sections=sections,
-                    gid=media.gid,
-                    uid=media.uid,
-                    token=token,
-                    project=project,
-                    user=self.request.user.pk,
-                    extra_params=[]
-                )
+                if run_algo:
+                    alg_obj = Algorithm.objects.filter(project__id=project)
+                    alg_obj = alg_obj.filter(name=alg_name)
+                    if len(alg_obj) != 1:
+                        raise Http404
+                    alg_obj = alg_obj[0]
+                    submitter = TatorAlgorithm(alg_obj)
+                    sections = media.attributes['tator_user_sections']
+                    alg_response = submitter.start_algorithm(
+                        media_ids=f"{media.id}",
+                        sections=sections,
+                        gid=media.gid,
+                        uid=media.uid,
+                        token=token,
+                        project=project,
+                        user=self.request.user.pk,
+                        extra_params=[]
+                    )
 
-                params_attrs = {'attributes':{
-                    alg_on_archival: alg_name,
-                    alg_on_archival_launched : True
-                }}
-                new_attrs = validate_attributes(params_attrs, media)
-                media = patch_attributes(new_attrs, media)
-                media.save()
+                    params_attrs = {'attributes':{
+                        alg_on_archival: alg_name,
+                        alg_on_archival_launched : True
+                    }}
+                    new_attrs = validate_attributes(params_attrs, media)
+                    media = patch_attributes(new_attrs, media)
+                    media.save()
 
-                response_data = {'message': f"Moved video for media {params['id']} and launched algorithm {alg_name}!",
-                                'id': params['id']}
+                    response_data = {'message': f"Moved video for media {params['id']} and launched algorithm {alg_name}!",
+                                    'id': params['id']}
+        except:
+            response_data = {'message': f"Moved video for media {params['id']}! Failed to launch algorithm {alg_name}!",
+                            'id': params['id']}
 
         return response_data
         
