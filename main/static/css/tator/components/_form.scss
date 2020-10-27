@@ -180,29 +180,29 @@ textarea.form-control {
 
 .radio-slide {
   background-color: $color-purple;
-  height: 12px;
+  height: 24px;
   margin-left: $spacing-2;
   margin-right: $spacing-2;
   position: relative;
-  width: 25px;
+  width: 50px;
   transition-duration: .25s;
   transition-property: background-color;
   &:after {
     background-color: $color-white;
     border-radius: 50%;
     content: "";
-    height: 8px;
+    height: 20px;
     left: 2px;
     position: absolute;
     top: 2px;
     transition-duration: .25s;
     transition-property: transform;
-    width: 8px;
+    width: 20px;
   }
   input:not(:first-child):checked + label + & {
     background-color: $color-charcoal--light;
     &:after {
-      transform: translateX(13px);
+      transform: translateX(26px);
     }
   }
 }
@@ -210,12 +210,12 @@ textarea.form-control {
 .range {
   -webkit-appearance: none;
   background-color: $color-gray--dark;
-  border-radius: 3px;
-  height: 3px;
+  border-radius: 6px;
+  height: 6px;
   &::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 10px;
-      width: 10px;
+      height: 20px;
+      width: 20px;
       border-radius: 50%;
       background-color: $color-white;
   }
@@ -223,8 +223,8 @@ textarea.form-control {
       outline: none;
       &::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 10px;
-      width: 10px;
+      height: 20px;
+      width: 20px;
       border-radius: 50%;
       background-color: $color-gray--light;
   }
