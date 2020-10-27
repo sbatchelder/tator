@@ -65,7 +65,7 @@ class AlgorithmListAPI(BaseListView):
 
         # Is the name unique?
         alg_workflow_name = params[fields.name]
-        if Algorithm.objects.filter(name=alg_workflow_name).exists():
+        if Algorithm.objects.filter(name=alg_workflow_name, project=params[fields.project]).exists():
             log_msg = f'Provided algorithm workflow name ({alg_workflow_name}) already exists'
             logger.error(log_msg)
             raise ValueError(log_msg)
