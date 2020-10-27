@@ -2392,13 +2392,67 @@ class AnnotationCanvas extends TatorElement
       });
     };
 
-    if (frame != this.currentFrame())
-    {
-      this.gotoFrame(frame).then(trackSelectFunctor);
+    // Specific to redact. Find the localization that has the highest confidence
+    // in this track and go to that frame. This is different than the default
+    // Tator behavior of going to the first frame.
+    //
+    // #TODO This isn't scalable, similar issue with searching for localizations
+    //       in above trackSelectFunctor
+    let findLocalizationToUse = () => {
+
+      var bestConfidence = -1.0;
+      var bestLoc = undefined;
+      var foundCount = 0;
+
+      if (this._activeTrack == track) { return bestLoc; }
+
+      this._data._dataByType.forEach((value, key, map) => {
+        if (key != track.meta) {
+
+          for (const locId of track.localizations) {
+            let loc = value.find(({id}) => id === locId );
+            if (loc != undefined) {
+              foundCount += 1;
+              let confidence = parseFloat(loc.attributes.Confidence);
+              if (!isNaN(confidence)) {
+                if (confidence > bestConfidence) {
+                  bestLoc = loc;
+                }
+              }
+
+              if (foundCount == track.localizations.length) {
+                return bestLoc;
+              }
+            }
+          }
+        }
+      });
+
+      return bestLoc;
     }
-    else
-    {
-      trackSelectFunctor();
+
+    let localizationToUse = findLocalizationToUse();
+    if (localizationToUse != undefined) {
+      if (localizationToUse.frame != this.currentFrame()) {
+        this.gotoFrame(localizationToUse.frame).then(() => {
+          this.selectLocalization(localizationToUse, true);
+          this._activeTrack = track;
+        });
+      }
+      else {
+        this.selectLocalization(localizationToUse, true);
+        this._activeTrack = track;
+      }
+    }
+    else {
+      if (frame != this.currentFrame())
+      {
+        this.gotoFrame(frame).then(trackSelectFunctor);
+      }
+      else
+      {
+        trackSelectFunctor();
+      }
     }
   }
 
