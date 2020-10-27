@@ -46,6 +46,7 @@ class EntityBrowser extends TatorElement {
     searchDiv.appendChild(this._search);
 
     const groupDiv = document.createElement("div");
+    groupDiv.setAttribute("class", "annotation__panel-group py-3 text-gray f2");
     spacer.appendChild(groupDiv);
 
     this._group = document.createElement("bool-input");
