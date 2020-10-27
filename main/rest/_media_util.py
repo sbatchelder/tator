@@ -42,17 +42,17 @@ class MediaUtil:
                     self._moof_data = [(i,x) for i,x in enumerate(self._segment_info
                                                                 ['segments']) if x['name'] == 'moof']
 
-            # It's possible the best resolution available is not great for algorithm processing,
-            # so use the archived video instead. Use archived video if streaming resolution
-            # is less than half the archived video and the height is less than 720
-            if self._height < 0.5 * video.media_files["archival"]["resolution"][0] and self._height < 720.0:
-                use_archival = True
+                # It's possible the best resolution available is not great for algorithm processing,
+                # so use the archived video instead. Use archived video if streaming resolution
+                # is less than half the archived video and the height is less than 720
+                if self._height < 0.5 * video.media_files["archival"][0]["resolution"][0] and self._height < 720.0:
+                    use_archival = True
 
             if use_archival:
                 # Utilize the archived video if there are no streaming options
-                self._video_file = video.media_files["archival"]
-                self._height = video.media_files["archival"]["resolution"][0]
-                self._width = video.media_files["archival"]["resolution"][1]
+                self._video_file = video.media_files["archival"][0]["path"]
+                self._height = video.media_files["archival"][0]["resolution"][0]
+                self._width = video.media_files["archival"][0]["resolution"][1]
         elif video.original:
             video_file = video.original
             self._height = video.height
