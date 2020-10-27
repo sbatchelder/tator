@@ -1143,12 +1143,12 @@ class AnnotationCanvas extends TatorElement
         });
 
         // Set the first track as the active track / display it on the GUI
-        const track = evt.detail.data[0];
-        this._activeTrack = track
-        this.dispatchEvent(new CustomEvent("select", {
-          detail: track,
-          composed: true,
-        }));
+        //const track = evt.detail.data[0];
+        //this._activeTrack = track
+        //this.dispatchEvent(new CustomEvent("select", {
+        //  detail: track,
+        //  composed: true,
+        //}));
 
       }
     });
