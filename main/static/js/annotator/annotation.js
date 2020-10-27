@@ -1141,6 +1141,15 @@ class AnnotationCanvas extends TatorElement
             track.color = color.rgbToHex(drawColor);
           }
         });
+
+        // Set the first track as the active track / display it on the GUI
+        const track = evt.detail.data[0];
+        this._activeTrack = track
+        this.dispatchEvent(new CustomEvent("select", {
+          detail: track,
+          composed: true,
+        }));
+
       }
     });
   }
@@ -3503,10 +3512,23 @@ class AnnotationCanvas extends TatorElement
           localization.color = colorInfo.color
           var fill = colorInfo.fill;
 
+          var active = false
+          if (localization.color[0] == color.WHITE[0] &&
+              localization.color[1] == color.WHITE[1] &&
+              localization.color[2] == color.WHITE[2]) {
+
+            active = true;
+
+            //var polyBorder = this.localizationToPoly(localization, drawContext, roi);
+            //drawContext.drawPolygon(polyBorder, color.BLACK, width*6, colorInfo.alpha*0.3);
+            width *= 2;
+          }
+
           if (type=='box')
           {
             var poly = this.localizationToPoly(localization, drawContext, roi);
             drawContext.drawPolygon(poly, localization.color, width, colorInfo.alpha);
+
             if (fill.style == "solid")
             {
               drawContext.fillPolygon(poly, width, fill.color, fill.alpha);
