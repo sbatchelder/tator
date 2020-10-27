@@ -171,6 +171,12 @@ class EntityBrowser extends TatorElement {
         selector.dataType = this._dataType;
         selector.undoBuffer = this._undo;
         selector.update(groups[group]);
+
+        if (!this._dataType.isLocalization) {
+          selector.toggleCaptureButton(false);
+          selector.toggleRedrawButton(false);
+        }
+
         li.appendChild(selector);
         this._selectors[group] = selector;
 

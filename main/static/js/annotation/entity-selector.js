@@ -163,7 +163,7 @@ class EntitySelector extends TatorElement {
     });
 
     more.addEventListener("click", () => {
-      if (capture.style.display == "none") {
+      if (!this._moreToggle) {
         if (hasPermission(this._permission, "Can Edit")) {
           this._del.style.display = "block";
           redraw.style.display = "block";
@@ -173,10 +173,21 @@ class EntitySelector extends TatorElement {
         }
         // Clear out the display regardless of whether this is a localization or state (e.g. track)
         capture.style.display = null;
+
+        if (!this.redrawButtonVisible) {
+          redraw.style.display = "none";
+        }
+        if (!this.captureButtonVisible) {
+          capture.style.display = "none";
+        }
+
+        this._moreToggle = true;
+
       } else {
         this._del.style.display = "none";
         capture.style.display = "none";
         redraw.style.display = "none";
+        this._moreToggle = false;
       }
     });
 
@@ -193,6 +204,10 @@ class EntitySelector extends TatorElement {
       this._current.textContent = String(Number(this._slider.value) + 1);
       this._emitSelection(true, true);
     });
+
+    this.captureButtonVisible = true;
+    this.redrawButtonVisible = true;
+    this._moreToggle = false;
   }
 
   static get observedAttributes() {
@@ -226,6 +241,20 @@ class EntitySelector extends TatorElement {
 
   set undoBuffer(val) {
     this._undo = val;
+  }
+
+  /**
+   * @param {bool} val: True if capture button should be visible. False will hide it.
+   */
+  toggleCaptureButton(val) {
+    this.captureButtonVisible = val;
+  }
+
+  /**
+   * @param {bool} val: True if redraw button should be visible. False will hide it.
+   */
+  toggleRedrawButton(val) {
+    this.redrawButtonVisible = val;
   }
 
   update(data) {
