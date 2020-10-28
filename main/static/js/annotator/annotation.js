@@ -699,7 +699,15 @@ class AnnotationCanvas extends TatorElement
     this._contextMenuLoc.disableEntry("Add to main track", true, "Need to set main track first");
     this._createNewTrackMenuEntries = [];
 
+    let mainTrackTextStyle = {
+      "fontSize": "12pt",
+      "fontWeight": "bold",
+      "color": "white"};
+    this._mainTrackText = this._textOverlay.addText(-1, -1, "Main", mainTrackTextStyle)
+
     this._contextMenuFrame = 0;
+
+    this._playing = false;
 
     this._clipboard = new Clipboard(this);
 
@@ -923,9 +931,15 @@ class AnnotationCanvas extends TatorElement
     }
     else if (menuText == "Set as main track")
     {
+      //this._textOverlay.modifyText(
+      //  this._mainTrackText,
+      //  {x: this.activeLocalization.x + this.activeLocalization.width * 0.5,
+      //   y: this.activeLocalization.y + this.activeLocalization.height * 0.5});
+
       this._selectedMergeTrack = this._activeTrack;
       this._contextMenuTrack.disableEntry("Merge into main track", false);
       this._contextMenuLoc.disableEntry("Add to main track", false);
+      this.refresh();
       return;
     }
     else if (menuText == "Add to main track")
@@ -2342,11 +2356,21 @@ class AnnotationCanvas extends TatorElement
               that.refresh();
             });
     }
+
     // Handle case when localization is in a track
+    //this._textOverlay.modifyText(this._mainTrackText, {x: -1, y: -1});
     if (localization.id in this._data._trackDb)
     {
       const track = this._data._trackDb[localization.id];
       this._activeTrack = track
+
+      //if (this._activeTrack == this._selectedMergeTrack) {
+      //  this._textOverlay.modifyText(
+      //    this._mainTrackText,
+      //    {x: localization.x + localization.width * 0.5,
+      //     y: localization.y + localization.height * 0.5});
+      //}
+
       this.dispatchEvent(new CustomEvent("select", {
         detail: track,
         composed: true,
@@ -3539,6 +3563,9 @@ class AnnotationCanvas extends TatorElement
         console.warn("Unsupported localization type: " + type);
       }
     }
+
+    this._textOverlay.modifyText(this._mainTrackText, {x: -1, y: -1});
+
     if (this._framedData.has(frameIdx))
     {
       var typeDict = this._framedData.get(frameIdx);
@@ -3595,6 +3622,28 @@ class AnnotationCanvas extends TatorElement
             {
               drawContext.fillPolygon(poly, width, fill.color, fill.alpha,[2.0,0,0,0]);
             }
+
+            // Move the main track text if this localization is a part of the seleted main track
+            if (!this._playing)
+            {
+              if (localization.id in this._data._trackDb)
+              { 
+                let this_roi = roi;
+                if (this_roi == undefined)
+                {
+                  this_roi = this._roi;
+                }
+            
+                var scaleFactor=[drawContext.clientWidth/this_roi[2], drawContext.clientHeight/this_roi[3]];
+                const track = this._data._trackDb[localization.id];
+                if (track == this._selectedMergeTrack) {
+                  this._textOverlay.modifyText(
+                    this._mainTrackText,
+                    {x: (poly[0][0] + (poly[1][0] - poly[0][0]) * 0.5)/scaleFactor[0],
+                    y: (poly[0][1] + (poly[3][1] - poly[1][1]) * 0.5)/scaleFactor[1]});
+                }
+              }
+            }
           }
           else if (type == 'line')
           {
@@ -3613,6 +3662,9 @@ class AnnotationCanvas extends TatorElement
           }
         }
       }
+
+      
+
       return drawContext.dumpDraw();
     }
     else
@@ -3638,10 +3690,14 @@ class AnnotationCanvas extends TatorElement
     this.activeLocalization = null;
     this._emphasis = null;
     this._mouseMode = MouseMode.QUERY;
+    this._playing = true;
+    this._textOverlay.modifyText(this._mainTrackText, {x: -1, y: -1});
   }
 
   onPause()
   {
+    this._playing = false;
+
     if (this.activeLocalization) {
       if (this.currentFrame() !== this.activeLocalization.frame) {
         this.activeLocalization = null;
@@ -3696,6 +3752,10 @@ class AnnotationCanvas extends TatorElement
 
   zoomIn()
   {
+    //#TODO Add some logic in the future to show the main track in the right position
+    //      when zooming.
+    this._textOverlay.modifyText(this._mainTrackText, {x: -1, y: -1});
+
     var that = this;
     this.refresh().then(
       function()
