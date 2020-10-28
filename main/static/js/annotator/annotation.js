@@ -3636,11 +3636,13 @@ class AnnotationCanvas extends TatorElement
             
                 var scaleFactor=[drawContext.clientWidth/this_roi[2], drawContext.clientHeight/this_roi[3]];
                 const track = this._data._trackDb[localization.id];
-                if (track.id == this._selectedMergeTrack.id) {
-                  this._textOverlay.modifyText(
-                    this._mainTrackText,
-                    {x: (poly[0][0] + (poly[1][0] - poly[0][0]) * 0.5)/scaleFactor[0],
-                    y: (poly[0][1] + (poly[3][1] - poly[1][1]) * 0.5)/scaleFactor[1]});
+                if (this._selectedMergeTrack != undefined) {
+                  if (track.id == this._selectedMergeTrack.id) {
+                    this._textOverlay.modifyText(
+                      this._mainTrackText,
+                      {x: (poly[0][0] + (poly[1][0] - poly[0][0]) * 0.5)/scaleFactor[0],
+                      y: (poly[0][1] + (poly[3][1] - poly[1][1]) * 0.5)/scaleFactor[1]});
+                  }
                 }
               }
             }
