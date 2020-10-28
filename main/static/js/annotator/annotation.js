@@ -3636,7 +3636,7 @@ class AnnotationCanvas extends TatorElement
             
                 var scaleFactor=[drawContext.clientWidth/this_roi[2], drawContext.clientHeight/this_roi[3]];
                 const track = this._data._trackDb[localization.id];
-                if (track == this._selectedMergeTrack) {
+                if (track.id == this._selectedMergeTrack.id) {
                   this._textOverlay.modifyText(
                     this._mainTrackText,
                     {x: (poly[0][0] + (poly[1][0] - poly[0][0]) * 0.5)/scaleFactor[0],
