@@ -228,8 +228,8 @@ class EntityBrowser extends TatorElement {
 
           selector.addEventListener("select", evt => {
             attributes.setValues(evt.detail.data);
-            if (this._dataType.isTrack) {
-              this._canvas.selectTrack(evt.detail.data);
+            if (this._dataType.isTrack && evt.detail.newTrackSelect) {
+              this._canvas.selectTrack(evt.detail.data, undefined, true);
             }
           });
         };

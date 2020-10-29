@@ -169,6 +169,7 @@ class ModifyTrackDialog extends TatorElement {
              localizationType: this._data.localization.meta,
              trackType: this._data.mainTrack.meta,
              frame: this._data.frame,
+             track: this._data.mainTrack,
              mainTrackId: this._data.mainTrack.id,
              mergeTrackId: this._data.track.id}}));
     }
@@ -179,6 +180,7 @@ class ModifyTrackDialog extends TatorElement {
           {composed: true,
            detail: {
             project: this._data.project,
+            track: this._data.track,
             trackId: this._data.track.id,
             trackType: this._data.track.meta,
             localization: this._data.localization}}));
@@ -192,6 +194,7 @@ class ModifyTrackDialog extends TatorElement {
              localizationType: this._data.localization.meta,
              trackType: this._data.mainTrack.meta,
              frame: this._data.frame,
+             track: this._data.mainTrack,
              mainTrackId: this._data.mainTrack.id,
              detectionId: this._data.localization.id}}));
     }
@@ -202,6 +205,7 @@ class ModifyTrackDialog extends TatorElement {
           {composed: true,
            detail: {
              localizationType: this._data.localization.meta,
+             track: this._data.track,
              trackType: this._data.track.meta,
              frame: this._data.frame,
              endpoint: this._data.trimEndpoint,
@@ -246,6 +250,7 @@ class ModifyTrackDialog extends TatorElement {
             {composed: true,
              detail: {
                project: this._data.project,
+               track: this._data.track,
                trackId: this._data.track.id,
                trackType: this._data.track.meta,
                localization: this._data.localization,

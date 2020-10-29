@@ -752,7 +752,7 @@ class AnnotationPage extends TatorPage {
           this._data.updateType(this._data._dataTypes[evt.detail.localization.meta]);
           this._data.updateType(this._data._dataTypes[evt.detail.trackType]);
           Utilities.showSuccessIcon("Track extension done.", this._successColor);
-          canvas.selectTrack(evt.detail.trackId, evt.detail.localization.frame);
+          canvas.selectTrack(evt.detail.track, evt.detail.localization.frame);
         }
       });
     });
@@ -842,7 +842,7 @@ class AnnotationPage extends TatorPage {
           this._data.updateType(this._data._dataTypes[evt.detail.localization.meta]);
           this._data.updateType(this._data._dataTypes[evt.detail.trackType]);
           Utilities.showSuccessIcon("Track extension done.", this._successColor);
-          canvas.selectTrack(evt.detail.trackId, evt.detail.localization.frame);
+          canvas.selectTrack(evt.detail.track, evt.detail.localization.frame);
         });
       }
       else if (evt.detail.algorithm == "Auto") {
@@ -891,7 +891,7 @@ class AnnotationPage extends TatorPage {
             this._data.updateType(this._data._dataTypes[evt.detail.localization.meta]);
             this._data.updateType(this._data._dataTypes[evt.detail.trackType]);
             Utilities.showSuccessIcon("Track extension done.", this._successColor);
-            canvas.selectTrack(evt.detail.trackId, evt.detail.localization.frame);
+            canvas.selectTrack(evt.detail.track, evt.detail.localization.frame);
           }
         });
       }
@@ -922,7 +922,7 @@ class AnnotationPage extends TatorPage {
         this._data.updateType(this._data._dataTypes[evt.detail.localizationType]);
         this._data.updateType(this._data._dataTypes[evt.detail.trackType]);
         Utilities.showSuccessIcon("Track trimming done.", this._successColor);
-        canvas.selectTrack(evt.detail.trackId, evt.detail.frame);
+        canvas.selectTrack(evt.detail.track, evt.detail.frame);
       });
     });
 
@@ -946,7 +946,7 @@ class AnnotationPage extends TatorPage {
       .then(() => {
         this._data.updateType(this._data._dataTypes[evt.detail.trackType]);
         Utilities.showSuccessIcon("Detection added to track.", this._successColor);
-        canvas.selectTrack(evt.detail.mainTrackId, evt.detail.frame);
+        canvas.selectTrack(evt.detail.track, evt.detail.frame);
       });
     });
 
@@ -971,7 +971,7 @@ class AnnotationPage extends TatorPage {
         this._data.updateType(this._data._dataTypes[evt.detail.localizationType]);
         this._data.updateType(this._data._dataTypes[evt.detail.trackType]);
         Utilities.showSuccessIcon("Track merged.", this._successColor);
-        canvas.selectTrack(evt.detail.mainTrackId, evt.detail.frame);
+        canvas.selectTrack(evt.detail.track, evt.detail.frame);
       });
     });
 

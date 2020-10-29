@@ -59,7 +59,7 @@ class EntitySelector extends TatorElement {
     controls.appendChild(next);
 
     this._del = document.createElement("entity-delete-button");
-    this._del.style.marginLeft = "8px";
+    this._del.style.marginLeft = "30px";
     this._del.style.display = "none";
     controls.appendChild(this._del);
 
@@ -115,11 +115,14 @@ class EntitySelector extends TatorElement {
       }
     });
 
+    this._emitNewTrackSelect = false;
+
     prev.addEventListener("click", () => {
       const index = parseInt(this._current.textContent) - 1;
       if (index > 0) {
         this._current.textContent = String(index);
       }
+      this._emitNewTrackSelect = true;
       this._emitSelection(true, true);
     });
 
@@ -128,6 +131,7 @@ class EntitySelector extends TatorElement {
       if (index <= this._data.length) {
         this._current.textContent = String(index);
       }
+      this._emitNewTrackSelect = true;
       this._emitSelection(true, true);
     });
 
@@ -135,6 +139,7 @@ class EntitySelector extends TatorElement {
       capture.blur();
       this._emitCapture();
     });
+
 
     this._del.addEventListener("click", () => {
       let endpoint;
@@ -146,6 +151,7 @@ class EntitySelector extends TatorElement {
         Utilities.showSuccessIcon("Localization deleted!", this._successColor);
       } else {
         endpoint = "State";
+        this._emitNewTrackSelect = true;
         this._undo.del(endpoint, this._data[index].id, this._dataType).then(() => {
           if (this._dataType.delete_child_localizations) {
             this._canvas.updateAllLocalizations();
@@ -295,10 +301,12 @@ class EntitySelector extends TatorElement {
       detail: {
         data: this._data[index],
         dataType: this._dataType,
-        byUser: byUser
+        byUser: byUser,
+        newTrackSelect: this._emitNewTrackSelect,
       },
       composed: composed,
     }));
+    this._emitNewTrackSelect = false;
   }
 
   _emitCapture() {

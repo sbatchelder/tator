@@ -2388,12 +2388,17 @@ class AnnotationCanvas extends TatorElement
     this._activeTrack = null;
   }
 
-  selectTrack(track, frameHint)
+  selectTrack(track, frameHint, useBestLocalization)
   {
     let frame = frameHint;
     if (frame == undefined)
     {
       frame = track.segments[0][0];
+      if (this._activeTrack != undefined) {
+        if (this._activeTrack.id === track.id) {
+          return;
+        }
+      }
     }
 
     let trackSelectFunctor = () => {
@@ -2428,6 +2433,7 @@ class AnnotationCanvas extends TatorElement
       var bestLoc = undefined;
       var foundCount = 0;
 
+      if (!useBestLocalization) { return bestLoc; }
       if (this._activeTrack == track) { return bestLoc; }
 
       this._data._dataByType.forEach((value, key, map) => {
