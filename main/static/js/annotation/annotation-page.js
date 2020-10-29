@@ -144,9 +144,9 @@ class AnnotationPage extends TatorPage {
                                    "alignTo":  this._browser});
               player.mediaInfo = data;
               this._main.insertBefore(player, this._browser);
+              this._browser.canvas = player._video;
               this._setupInitHandlers(player);
               this._getMetadataTypes(player, player._video._canvas);
-              this._browser.canvas = player._video;
               this._settings._capture.addEventListener(
                 'captureFrame',
                 (e) =>
@@ -227,19 +227,20 @@ class AnnotationPage extends TatorPage {
         const haveLock = searchParams.has("lock");
         const haveFillBoxes = searchParams.has("fill_boxes");
         if (haveEntity && haveEntityType) {
-          const typeId = Number(searchParams.get("selected_entity_type"));
+          const typeId = searchParams.get("selected_entity_type");
           const entityId = Number(searchParams.get("selected_entity"));
           this._settings.setAttribute("entity-type", typeId);
           this._settings.setAttribute("entity-id", entityId);
-          for (const dtype of ['state', 'box', 'line', 'dot']) {
-            let modifiedTypeId = dtype + "_" + typeId;
-            if (this._data._dataByType.has(modifiedTypeId)) {
-              const data = this._data._dataByType.get(modifiedTypeId);
-              for (const elem of data) {
-                if (elem.id == entityId) {
-                  this._browser.selectEntity(elem);
-                  break;
+          if (this._data._dataByType.has(typeId)) {
+            const data = this._data._dataByType.get(typeId);
+            for (const elem of data) {
+              if (elem.id == entityId) {
+                this._browser.selectEntity(elem);
+
+                if (typeId.includes("state")) {
+                  canvas.selectTrack(elem);
                 }
+                break;
               }
             }
           }
