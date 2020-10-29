@@ -253,6 +253,15 @@ class AnnotationPage extends TatorPage {
               this._browser._openForTypeId(modifiedTypeId);
             }
           }
+        } else {
+          for (let [key, dataList] of this._data._dataByType) {
+            if (this._data._dataTypes[key].isTrack) {
+              if (dataList.length > 0) {
+                canvas.selectTrack(dataList[0]);
+                break;
+              }
+            }
+          }
         }
         if (haveVersion)
         {
@@ -664,6 +673,29 @@ class AnnotationPage extends TatorPage {
         canvas.addEventListener("minimize", () => {
           this._browser.style.display = "block";
         });
+        /*
+
+        // Select the first track if there are any
+        for (const dataType of this._data._dataTypes) {
+          if (dataType.isTrack) {
+            const data = this._data._dataByType.get(dataType.id);
+            if 
+          }
+        }
+        if (this._data._dataByType.has(typeId)) {
+          const data = this._data._dataByType.get(typeId);
+          for (const elem of data) {
+            if (elem.id == entityId) {
+              this._browser.selectEntity(elem);
+
+              if (typeId.includes("state")) {
+                canvas.selectTrack(elem);
+              }
+              break;
+            }
+          }
+        }
+        */
       });
    });
   }
