@@ -138,19 +138,21 @@ class EntitySelector extends TatorElement {
 
     this._del.addEventListener("click", () => {
       let endpoint;
+      this._successColor = "#54e37a";
       const index = parseInt(this._current.textContent) - 1;
       if (this._dataType.isLocalization) {
         endpoint = "Localization";
         this._canvas.deleteLocalization(this._data[index]);
+        Utilities.showSuccessIcon("Localization deleted!", this._successColor);
       } else {
         endpoint = "State";
         this._undo.del(endpoint, this._data[index].id, this._dataType).then(() => {
           if (this._dataType.delete_child_localizations) {
             this._canvas.updateAllLocalizations();
           }
+          Utilities.showSuccessIcon("State deleted!", this._successColor);
         });
       }
-      
     });
 
     redraw.addEventListener("click", () => {
