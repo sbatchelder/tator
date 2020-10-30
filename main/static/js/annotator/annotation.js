@@ -3562,6 +3562,8 @@ class AnnotationCanvas extends TatorElement
     }
 
     this._textOverlay.modifyText(this._mainTrackText, {x: -1, y: -1});
+    var displayMainTrackText = false;
+    var mainTrackTextInfo;
 
     if (this._framedData.has(frameIdx))
     {
@@ -3635,10 +3637,10 @@ class AnnotationCanvas extends TatorElement
                 const track = this._data._trackDb[localization.id];
                 if (this._selectedMergeTrack != undefined) {
                   if (track.id == this._selectedMergeTrack.id) {
-                    this._textOverlay.modifyText(
-                      this._mainTrackText,
-                      {x: (poly[0][0] + (poly[1][0] - poly[0][0]) * 0.5)/scaleFactor[0],
-                      y: (poly[0][1] + (poly[3][1] - poly[1][1]) * 0.5)/scaleFactor[1]});
+                    mainTrackTextInfo = {
+                      x: (poly[0][0] + (poly[1][0] - poly[0][0]) * 0.5)/scaleFactor[0],
+                      y: (poly[0][1] + (poly[3][1] - poly[1][1]) * 0.5)/scaleFactor[1]};
+                    displayMainTrackText = true;
                   }
                 }
               }
@@ -3662,7 +3664,9 @@ class AnnotationCanvas extends TatorElement
         }
       }
 
-      
+      if (displayMainTrackText && this.currentFrame() == frameIdx) {
+        this._textOverlay.modifyText(this._mainTrackText, mainTrackTextInfo);
+      }
 
       return drawContext.dumpDraw();
     }
