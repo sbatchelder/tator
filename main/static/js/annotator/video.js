@@ -2393,7 +2393,7 @@ class VideoCanvas extends AnnotationCanvas {
   _playGenericOnDemand(direction)
   {
     var that = this;
-    console.log("_playGenericOnDemand - Setting direction " + direction);
+    console.log(`_playGenericOnDemand (ID:${this._videoObject.id}) Setting direction ${direction}`);
     this._direction=direction;
 
     // Reset the GPU buffer on a new play action
@@ -2506,7 +2506,7 @@ class VideoCanvas extends AnnotationCanvas {
         if (source == null)
         {
           // Video isn't ready yet, wait and try again
-          console.log("video buffer not ready for loading - frame: " + frameIdx);
+          console.log(`video buffer not ready for loading - (ID:${that._videoObject.id}) frame: ` + frameIdx);
           that._loaderTimeout = setTimeout(loader, 250);
         }
         else
@@ -2554,7 +2554,7 @@ class VideoCanvas extends AnnotationCanvas {
       var calculatedFPS = (that._fpsDiag / diagInterval)*1000.0;
       var loadFPS = ((that._fpsLoadDiag / diagInterval)*1000.0);
       var targetFPS = that._motionComp.targetFPS;
-      let fps_msg = `FPS = ${calculatedFPS}, Load FPS = ${loadFPS}, Score=${that._fpsScore}, targetFPS=${targetFPS}`;
+      let fps_msg = `(ID:${that._videoObject.id}) FPS = ${calculatedFPS}, Load FPS = ${loadFPS}, Score=${that._fpsScore}, targetFPS=${targetFPS}`;
       that._audioCheck++;
       if (that._audioPlayer && that._audioCheck % AUDIO_CHECK_INTERVAL == 0)
       {
@@ -2596,7 +2596,7 @@ class VideoCanvas extends AnnotationCanvas {
 
         if (that._fpsScore == 0)
         {
-          console.warn("Detected slow performance, entering safe mode.");
+          console.warn(`(ID:${that._videoObject.id}) Detected slow performance, entering safe mode.`);
 
           that.dispatchEvent(new Event("safeMode"));
           that._motionComp.safeMode();
@@ -2711,10 +2711,10 @@ class VideoCanvas extends AnnotationCanvas {
         else
         {
           const currentTime = that.frameToTime(that._dispFrame);
-          const appendThreshold = 10; // Worth revisiting to make this configurable
+          const appendThreshold = 15; // Worth revisiting to make this configurable
 
           // Adjust the playback threshold if we're close to the edge of the video
-          var playbackReadyThreshold = 5; // Seconds
+          var playbackReadyThreshold = 10; // Seconds
           const totalVideoTime = that.frameToTime(that._numFrames);
           if (direction == Direction.FORWARD &&
             (totalVideoTime - currentTime < playbackReadyThreshold))
@@ -2753,7 +2753,7 @@ class VideoCanvas extends AnnotationCanvas {
                   {
                     if (video.playBuffer().readyState > 0 && that.videoBuffer(that.currentFrame(), "play") != null)
                     {
-                      console.log(`playbackReady (start/end/current/timeToEnd): ${start} ${end} ${currentTime} ${timeToEnd}`)
+                      console.log(`(ID:${that._videoObject.id}) playbackReady (start/end/current/timeToEnd): ${start} ${end} ${currentTime} ${timeToEnd}`)
                       that._sentPlaybackReady = true;
                       that.dispatchEvent(new CustomEvent(
                         "playbackReady",
@@ -2769,7 +2769,7 @@ class VideoCanvas extends AnnotationCanvas {
                   // Enough data to start playback
                   if (!that._onDemandPlaybackReady)
                   {
-                    console.log(`onDemandPlaybackReady (start/end/current/timeToEnd): ${start} ${end} ${currentTime} ${timeToEnd}`);
+                    console.log(`(ID:${that._videoObject.id}) onDemandPlaybackReady (start/end/current/timeToEnd): ${start} ${end} ${currentTime} ${timeToEnd}`);
                   }
                   that._onDemandPlaybackReady = true;
                 }
@@ -2786,7 +2786,7 @@ class VideoCanvas extends AnnotationCanvas {
                   var trimEnd = currentTime - 2;
                   if (trimEnd > start && that._playing)
                   {
-                    console.log(`...Removing seconds ${start} to ${trimEnd} in sourceBuffer`);
+                    console.log(`(ID:${that._videoObject.id}) ...Removing seconds ${start} to ${trimEnd} in sourceBuffer`);
                     video.deletePendingOnDemand([start, trimEnd]);
                   }
                 }
@@ -2795,7 +2795,7 @@ class VideoCanvas extends AnnotationCanvas {
                   var trimEnd = currentTime + 2;
                   if (trimEnd < end && that._playing)
                   {
-                    console.log(`...Removing seconds ${trimEnd} to ${end} in sourceBuffer`);
+                    console.log(`(ID:${that._videoObject.id}) ...Removing seconds ${trimEnd} to ${end} in sourceBuffer`);
                     video.deletePendingOnDemand([trimEnd, end]);
                   }
                 }
@@ -2814,7 +2814,7 @@ class VideoCanvas extends AnnotationCanvas {
             {
               // If for some reason the onDemand was initialized incorrectly, reinitialize
               // #TODO Worth looking at in the future to figure out how to prevent this scenario.
-              console.log(`onDemand was initialized with frame ${that._onDemandInitStartFrame} - reinitializing with ${that._dispFrame}`);
+              console.log(`(ID:${that._videoObject.id}) onDemand was initialized with frame ${that._onDemandInitStartFrame} - reinitializing with ${that._dispFrame}`);
               that._onDemandInitSent = false;
               that._onDemandInit = false;
               that._onDemandPlaybackReady = false;
@@ -2822,7 +2822,7 @@ class VideoCanvas extends AnnotationCanvas {
             else
             {
               // Request more data, we received a block of data but it's likely on the boundary.
-              console.log("playback not ready -- downloading additional data");
+              console.log(`(ID:${that._videoObject.id}) playback not ready -- downloading additional data`);
               needMoreData = true;
             }
           }
@@ -2831,7 +2831,7 @@ class VideoCanvas extends AnnotationCanvas {
         if (needMoreData && !that._onDemandFinished)
         {
           // Kick of the download worker to get the next onDemand segments
-          console.log("Requesting more onDemand data");
+          console.log(`(ID:${that._videoObject.id}) Requesting more onDemand data`);
           that._onDemandPendingDownloads += 1;
           that._dlWorker.postMessage({"type": "onDemandDownload"});
         }
@@ -2842,7 +2842,7 @@ class VideoCanvas extends AnnotationCanvas {
         // Kick off the loader thread once we have buffered enough data (do this just once)
         if (that._onDemandPlaybackReady && !that._loaderStarted)
         {
-          console.log("Launching playback loader");
+          console.log(`(ID:${that._videoObject.id}) Launching playback loader`);
           that._loaderStarted = true;
           that._loaderTimeout = setTimeout(loader, 250);
         }
@@ -2858,7 +2858,7 @@ class VideoCanvas extends AnnotationCanvas {
       {
         if (!that._onDemandFinished)
         {
-          that._onDemandDownloadTimeout = setTimeout(onDemandDownload, 250);
+          that._onDemandDownloadTimeout = setTimeout(onDemandDownload, 100);
         }
       }
     }
