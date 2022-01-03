@@ -181,6 +181,8 @@ class AnnotationView(ProjectBase, TemplateView):
         context['media'] = media
         return context
 
+class AnnotationSegmentView(ProjectBase, TemplateView):
+    template_name = 'annotation-segment.html'
 
 def validate_project(user, project):
     # We only cache 'True' effectively with this logic

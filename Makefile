@@ -418,6 +418,7 @@ FILES = \
     annotator/image.js \
     annotator/live-video.js \
     annotation/annotation-player.js \
+    annotation/annotation-segment-player.js \
     annotation/annotation-image.js \
     annotation/annotation-multi.js \
     annotation/annotation-live.js \

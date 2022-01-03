@@ -1,0 +1,17 @@
+{% extends "tator-base.html" %}
+
+{% load static %}
+
+{% block head %}
+<title>Tator | Annotator | Segmented Media</title>
+{% endblock head %}
+
+{% block body %}
+<annotation-segment-player
+  username="{{ user|stringformat:'s' }}"
+  email="{{ user.email }}"
+  user-id={{ user.id }}
+  project-name="{{ project.name }}"
+  project-id={{ project.id }}>
+</annotation-segment-player>
+{% endblock body %}
