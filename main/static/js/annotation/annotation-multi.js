@@ -113,14 +113,12 @@ class AnnotationMulti extends TatorElement {
     this._currentFrameInput = document.createElement("input");
     this._currentFrameInput.setAttribute("class", "form-control input-sm1 f2 text-center");
     this._currentFrameInput.setAttribute("type", "text");
-    this._currentFrameInput.setAttribute("id", "frame_num_ctrl");
     this._currentFrameInput.style.display = "none";
     this._currentFrameInput.style.width = "100px";
     frameDiv.appendChild(this._currentFrameInput);
 
     this._currentFrameText = document.createElement("div");
     this._currentFrameText.setAttribute("class", "f2 text-center");
-    this._currentFrameText.setAttribute("id", "frame_num_display");
     this._currentFrameText.textContent = "0";
     this._currentFrameText.style.minWidth = "15px";
     currentFrameWrapper.appendChild(this._currentFrameText);
@@ -1405,6 +1403,10 @@ class AnnotationMulti extends TatorElement {
     {
       this.handleAllNotReadyEvents();
     }
+    else
+    {
+      this.enablePlayUI();
+    }
   }
 
 
@@ -1758,6 +1760,14 @@ class AnnotationMulti extends TatorElement {
     });
   }
 
+  enablePlayUI() {
+    this._play._button.removeAttribute("disabled");
+    this._rewind.removeAttribute("disabled")
+    this._fastForward.removeAttribute("disabled");
+    this._play.removeAttribute("tooltip");
+    this._playbackDisabled = false;
+  }
+
   disablePlayUI() {
     this._play._button.setAttribute("disabled","");
     // Use some spaces because the tooltip z-index is wrong
@@ -1903,7 +1913,6 @@ class AnnotationMulti extends TatorElement {
     let p_list=[];
     let prime_fps = this._fps[this._longest_idx]
     let idx = 0;
-    this.checkReady();
     for (let video of this._videos)
     {
       let this_frame = Math.round(frame * (this._fps[idx]/prime_fps));
@@ -1913,7 +1922,7 @@ class AnnotationMulti extends TatorElement {
     }
     let coupled_promise = new Promise((resolve,_) => {
       Promise.all(p_list).then(() =>{
-        this.handleAllNotReadyEvents();
+        this.checkReady();
         resolve();
       });
     });
