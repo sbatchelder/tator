@@ -1414,6 +1414,7 @@ class VideoCanvas extends AnnotationCanvas {
           console.warn(`Out of order seek operations detected. Expected=${this.seekFrame}, Got=${e.data["frame"]}`);
           return;
         }
+        console.log("video.js startDownload() appending to seek buffer");
         that._videoElement[that._seek_idx].appendSeekBuffer(e.data["buffer"], e.data['time']);
         document.body.style.cursor = null;
         let seek_time = performance.now() - that._seekStart;
@@ -1879,7 +1880,7 @@ class VideoCanvas extends AnnotationCanvas {
       this.mediaType = mediaType;
     this._videoObject = videoObject;
 
-    
+
     // If quality is not supplied default to 720 or highest available
     let resolutions = videoObject.media_files["streaming"].length;
     this._maxHeight = 0;
@@ -2318,6 +2319,8 @@ class VideoCanvas extends AnnotationCanvas {
     var downloadSeekFrame = false;
     var createTimeout = false;
 
+    console.log(`[${this.video_id()}] video.js() seekFrame() videoBuffer - param:${bufferType}`);
+
     if (bufferType == undefined)
     {
       bufferType = "scrub";
@@ -2347,6 +2350,7 @@ class VideoCanvas extends AnnotationCanvas {
     // attempting to seek to another frame
     if (video == null && this._direction == Direction.STOPPED)
     {
+      console.log(`[${this.video_id()}] video.js() seekFrame() videoBuffer - seek`);
       // Set the seek buffer, and command worker to get the seek
       // response
       document.body.style.cursor = "progress";
@@ -2379,9 +2383,11 @@ class VideoCanvas extends AnnotationCanvas {
       return new Promise(
         function(resolve,reject)
         {
+          console.log(`[${that.video_id()}] video.js() seekFrame() video==null`);
           callback = callback.bind(that);
           callback(frame, video, that._dims[0], that._dims[1]);
           resolve();
+          console.log(`[${that.video_id()}] video.js() seekFrame() video==null resolved`);
         });
     }
 
@@ -2393,6 +2399,8 @@ class VideoCanvas extends AnnotationCanvas {
         // by waiting for a signal off the video + then scheduling an animation frame.
         video.oncanplay=function()
         {
+          video.oncanplay=null;
+          console.log(`[${that.video_id()}] video.js() seekFrame() oncanplay`);
           clearTimeout(that._seek_expire);
           that._seek_expire = null;
           // if we are masked, take it off
@@ -2409,7 +2417,7 @@ class VideoCanvas extends AnnotationCanvas {
           callback=callback.bind(that);
           callback(frame, video, that._dims[0], that._dims[1])
           resolve();
-          video.oncanplay=null;
+          console.log(`[${that.video_id()}] video.js() seekFrame() oncanplay resolved`);
           that.dispatchEvent(new CustomEvent("seekComplete",
                                        {composed: true,
                                         detail: {
@@ -3580,9 +3588,12 @@ class VideoCanvas extends AnnotationCanvas {
       // force a redraw at the currently displayed frame
       var finalPromise = new Promise((resolve, reject) => {
         var seekPromise = this.seekFrame(this._dispFrame, this.drawFrame, true);
+        console.log(`[${this.video_id()}] video.js pause() seekframe()`);
         seekPromise.then(() => {
+          console.log(`[${this.video_id()}] video.js pause() resolved()`);
           resolve();
         }).catch(() => {
+          console.log(`[${this.video_id()}] video.js pause() resolved() error`);
           resolve();
         });
       });

@@ -1487,6 +1487,7 @@ class AnnotationMulti extends TatorElement {
       console.log("Already handling a not ready event");
       return;
     }
+    console.log(`handleNotReadyEvent - videoIndex: ${videoIndex}`)
     this.disablePlayUI();
 
     const timeouts = [4000, 8000, 16000];
@@ -1751,10 +1752,11 @@ class AnnotationMulti extends TatorElement {
       this._play.setAttribute("is-paused", "");
     }
     clearTimeout(this._syncThread);
+    console.log(`pause() - Number of pausePromises ${pausePromises.length}`);
     Promise.all(pausePromises).then(() => {
       // If we are in focus mode, sync to the focused video.
       // Otherwise, use the video with the most data.
-
+      console.log(`pause() - pausePromises resolved.`);
       this._videoStatus = "paused";
       this.goToFrame(this._videos[this._primaryVideoIndex].currentFrame());
     });
@@ -1922,6 +1924,7 @@ class AnnotationMulti extends TatorElement {
     }
     let coupled_promise = new Promise((resolve,_) => {
       Promise.all(p_list).then(() =>{
+        console.log("goToFrame: Promises resolved")
         this.checkReady();
         resolve();
       });
