@@ -1747,7 +1747,7 @@ class AnnotationMulti extends TatorElement {
     if (paused == false) {
       for (let video of this._videos)
       {
-        pausePromises.push(video.pause());
+        pausePromises.push(video.pause(true));
       }
       this._play.setAttribute("is-paused", "");
     }

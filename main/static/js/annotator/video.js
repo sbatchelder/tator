@@ -1414,7 +1414,7 @@ class VideoCanvas extends AnnotationCanvas {
           console.warn(`Out of order seek operations detected. Expected=${this.seekFrame}, Got=${e.data["frame"]}`);
           return;
         }
-        console.log("video.js startDownload() appending to seek buffer");
+        console.log(`[${that._videoObject.id}] video.js startDownload() appending to seek buffer`);
         that._videoElement[that._seek_idx].appendSeekBuffer(e.data["buffer"], e.data['time']);
         document.body.style.cursor = null;
         let seek_time = performance.now() - that._seekStart;
@@ -2394,6 +2394,11 @@ class VideoCanvas extends AnnotationCanvas {
     var promise = new Promise(
       function(resolve,reject)
       {
+
+        if (video.oncanplay != null) {
+          console.log(`[${that.video_id()}] video.js() seekFrame() oncanplay NOT NULL`);
+        }
+
         // Because we are using off-screen rendering we need to defer
         // updating the canvas until the video/frame is actually ready, we do this
         // by waiting for a signal off the video + then scheduling an animation frame.
@@ -2457,6 +2462,7 @@ class VideoCanvas extends AnnotationCanvas {
              "time": time,
              "buf_idx": that._seek_idx});
         }
+        console.log(`[${that.video_id()}] video.js() seekFrame() readyState ${video.readyState}`);
       });
 
     if (time <= video.duration || isNaN(video.duration))
@@ -3563,7 +3569,7 @@ class VideoCanvas extends AnnotationCanvas {
    * This will stop all the player threads and set the video player to paused
    * A redraw of the currently displayed frame will occur using the highest quality source
    */
-  pause()
+  pause(dontWaitForSeek)
   {
     // Stoping the player thread sets the direction to stop
     const currentDirection = this._direction;
@@ -3586,16 +3592,21 @@ class VideoCanvas extends AnnotationCanvas {
       this._videoElement[this._play_idx].pause();
 
       // force a redraw at the currently displayed frame
-      var finalPromise = new Promise((resolve, reject) => {
+      var finalPromise = new Promise(resolve => {
         var seekPromise = this.seekFrame(this._dispFrame, this.drawFrame, true);
-        console.log(`[${this.video_id()}] video.js pause() seekframe()`);
-        seekPromise.then(() => {
-          console.log(`[${this.video_id()}] video.js pause() resolved()`);
+        if (dontWaitForSeek) {
           resolve();
-        }).catch(() => {
-          console.log(`[${this.video_id()}] video.js pause() resolved() error`);
-          resolve();
-        });
+        }
+        else {
+          console.log(`[${this.video_id()}] video.js pause() seekframe() ${seekPromise}`);
+          seekPromise.then(() => {
+            console.log(`[${this.video_id()}] video.js pause() resolved()`);
+            resolve();
+          }).catch(() => {
+            console.log(`[${this.video_id()}] video.js pause() resolved() error`);
+            resolve();
+          });
+        }
       });
       return finalPromise;
     }
