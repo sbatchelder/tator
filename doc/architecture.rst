@@ -1,10 +1,8 @@
 Architectural Pieces
 ====================
 
-So what is Tator? Put simply, Tator is a web application. Like any web 
-application, it consists of a backend (software that run on remote servers)
-and a front-end (software that runs in a browser). This section will go through
-the components that make up each of these in detail.
+This section will discuss the component services that Tator uses in detail,
+including where they run and how they interact.
 
 
 .. figure:: https://user-images.githubusercontent.com/7937658/130495996-069fcca5-7950-4b68-8657-7773d18ffbaf.png
@@ -116,56 +114,70 @@ local area network using standard routing protocols.
 Object storage
 --------------
 
+Tator uses S3-compatible object storage for files, including media and media 
+attachments. Several services claim to be S3-compatible, but in reality each
+storage service has minor differences in their APIs. There are three officially
+supported object storage services in Tator: AWS S3, Google Cloud Storage (GCS),
+and min.io. Min.io may be run on Kubernetes, either on the same Kubernetes 
+cluster running the Tator REST API or on a separate cluster. It can also be 
+installed on bare metal or in docker containers. There are three "system" 
+buckets that may be defined, only one of which is required. The required bucket
+is the live bucket; it is where streaming and downloadable media is stored.
+The second system bucket is the upload bucket. It may be used for storing 
+initial uploads. In general this bucket should be colocated with transcoding
+hardware. The third bucket is used for archival storage. If this bucket is
+defined, Tator will use it to back up the live bucket. This is useful in 
+situations such as an on-premise live bucket with cloud-based archival 
+backups. In addition to these buckets, user-defined buckets may be registered
+in Tator and associated with an organization. A user-defined bucket may be
+used on any given project in place of the system default bucket for hot 
+storage. The upload and archival buckets may also be user-defined. While 
+requests to the Tator REST API are proxied by NGINX, requests to object 
+storage may be made directly to the object storage service. The only 
+configuration in which object storage requests are proxied are when min.io
+is running on the same Kubernetes cluster as the Tator REST API (typically
+only in development configurations). This is made possible by pre-signed URLs
+which are returned by the REST API, and it results in lower latency media 
+downloads and reduced load on the REST API load balancer and NGINX.
 
+Databases
+---------
 
+Tator uses three database-like services for storing media metadata, users,
+projects, organizations, algorithm registrations, dashboards, and other data.
+All three of these are interacted with by the REST service, which is 
+implemented using Python, specifically Django with Django REST Framework. The 
+primary database service is PostgreSQL, which is interacted with through 
+Django's Object Relational Mapping (ORM). Model definitions, migrations, and 
+read/write operations all go through the ORM. The second database is 
+Elasticsearch, which is used to mirror selected data from PostgreSQL. Certain
+query types are much faster in Elasticsearch, such as aggregations and 
+parent/child queries. We select which database to use based on the given
+request parameters, but the data is always serialized out of PostgreSQL. The
+third database service is Redis. Redis is an in-memory database that has 
+extremely fast access times, and it is used for storing information about
+temporary objects, such as workflows submitted to Argo.
 
-.. glossary::
-   Kubernetes
-     
+Administration
+--------------
 
-   MetalLB
-     The load balancer used in a bare metal deployment of kubernetes. The load
-     balancer is configured via :term:`loadBalancerIp` to forward traffic seen
-     at that IP to the internal software network of kubernetes.
-
-   Job Server
-     The job server is the kuberneters cluster that has :term:`Argo` installed
-     to run asynchronous jobs for the tator deployment. Asynchronous work can include
-     transcodes, GPU and/or CPU algorithms, report generation, and more.
-
-   Argo
-     An extension to kubernetes to define a new job type called a *workflow*.
-     This allows for defining the execution of complex algorithms or routines
-     across a series of pods based on the description.
-     `Argo <https://argoproj.github.io/projects/argo/>`_ is developed and
-     maintained by `Intuit <https://www.intuit.com/>`_.
-
-   NGINX
-     The `web server <https://www.nginx.com/>`_ used to handle both static
-     serving of files as well as forwarding to dynamic content created by
-     django.
-
-   Django
-     The `python web framework <https://www.djangoproject.com/>`_ used by
-     Tator for handling dynamic web content and REST interactions.
-
-   Elasticsearch
-     Complement to the :term:`PostgresSQL` database to allow for 
-     `faster searches and analytics <https://www.elastic.co/>`_.
-
-   PostgresSQL
-     `SQL-compliant database <https://www.postgresql.org/>`_ used to store
-     project configurations as well as media and associated metadata.
-
-   Redis
-     Provides `in-memory caching <https://www.redis.io>` of temporary data.
-
-   MinIO
-     An S3-compatible object storage suite used to store and retrieve all
-     media files.
-
-   Kubernetes
-     The underlying system used to deploy and manage the containerized
-     application. `Kubernetes <https://kubernetes.io/>`_ or k8s relays on
-     a working `Docker <https://www.docker.com/>`_ installation.
+Some dependencies are used only for administrative purposes, namely to 
+monitor the health and correct functioning of a Tator deployment. All
+of these services run on the same Kubernetes cluster where the Tator
+REST API is running. This is primarily so that these services have direct
+access to the pods in the REST API. Logs from all pods running in the
+Kubernetes cluster are configured to write to Elasticsearch using 
+`Filebeat <https://www.elastic.co/beats/filebeat>`_. This uses the
+same Elasticsearch service that is used for mirroring PostgreSQL. These log
+records are stored for seven days, and can be accessed via
+`Kibana <https://www.elastic.co/kibana/>`_. Kibana is proxied by NGINX
+at /logs, and can be accessed only by users who are granted "staff"
+permissions in Django. For pod metrics, such as number of pods, CPU 
+utilization, and request latency, we use
+`Prometheus <https://prometheus.io/>`_. Prometheus aggregates metrics from
+the Kubernetes API, `Gunicorn <https://gunicorn.org/>`_ (the server used
+internally to serve the REST API application), and NGINX to a persistent
+volume, and these metrics then can be displayed using
+`Grafana <https://grafana.com/>`_. Grafana is also proxied by NGINX and
+made available to staff users at /grafana.
 
