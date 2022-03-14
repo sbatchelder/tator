@@ -181,6 +181,14 @@ class AnnotationView(ProjectBase, TemplateView):
         context['media'] = media
         return context
 
+class AnnotationExperimentalView(ProjectBase, TemplateView):
+    template_name = 'annotation-experimental.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        media = get_object_or_404(Media, pk=self.kwargs['id'])
+        context['media'] = media
+        return context
 
 def validate_project(user, project):
     # We only cache 'True' effectively with this logic

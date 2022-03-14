@@ -1,0 +1,20 @@
+{% extends "tator-base.html" %}
+
+{% load static %}
+
+{% block head %}
+<title>Tator | Annotation (Experimental)</title>
+<script src={% static "annotation.js" %}></script>
+<script src={% static "annotator.js" %}></script>
+{% endblock head %}
+
+{% block body %}
+<annotation-page-experimental
+  username="{{ user|stringformat:'s' }}"
+  email="{{ user.email }}"
+  user-id={{ user.id }}
+  project-name="{{ project.name }}"
+  project-id={{ project.id }}
+  media-id={{ media.id }}>
+</annotation-page-experimental>
+{% endblock body %}
