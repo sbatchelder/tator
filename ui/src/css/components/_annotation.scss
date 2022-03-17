@@ -473,3 +473,32 @@ annotation-player {
   border-bottom: 1px solid $color-charcoal--light;
   border-top: 1px solid $color-charcoal--light;
 }
+
+.video-progress-bar {
+  z-index: 10;
+  height: 6px;
+  width: 100%;
+  position: relative;
+  box-sizing: border-box;
+  background-color: rgba(0,0,0,0.6);
+  overflow: hidden;
+}
+
+.video-progress-bar > span {
+  display: block;
+  height: 100%;
+  background-color: rgba(255,255,255,0.75);
+  position: relative;
+  overflow: hidden;
+}
+
+.video-progress-bar.active {
+  transition-property: opacity;
+  transition-duration: 0.01s;
+  opacity: 1;
+}
+.video-progress-bar.inactive {
+  transition-property: opacity;
+  transition-duration: 1.0s;
+  opacity: 0;
+}

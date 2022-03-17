@@ -155,11 +155,10 @@ export class SeekBarExperimental extends TatorElement {
     return this._value;
   }
 
-  onBufferLoaded(evt)
+  onBufferLoaded(loadedPercentage)
   {
-    this._loadedPercentage = evt.detail['percent_complete'];
-    const percent_complete = evt.detail['percent_complete']*100;
-    this.loadProgress.style.width=`${percent_complete}%`;
+    this._loadedPercentage = loadedPercentage;
+    this.loadProgress.style.width=`${loadedPercentage * 100}%`;
   }
 
   onDemandLoaded(evt)
@@ -184,13 +183,13 @@ export class SeekBarExperimental extends TatorElement {
   setLoadProgress(frame) {
     const percentage = ((frame-this._min)/(this._max - this._min));
     if (percentage > 1) {
-      this.onBufferLoaded({detail: {percent_complete: 1.0}});
+      this.onBufferLoaded(1.0);
     }
     else if (percentage < 0) {
-      this.onBufferLoaded({detail: {percent_complete: 0.0}});
+      this.onBufferLoaded(0.0);
     }
     else {
-      this.onBufferLoaded({detail: {percent_complete: percentage}});
+      this.onBufferLoaded(percentage);
     }
   }
 
