@@ -10,8 +10,12 @@ import TatorLoading from "../../images/tator_loading.gif";
  * - Does not have:
  *
  * - Uses version2:
- *   timeline-v2
  *   annotation-player-v2
+ * 
+ * #TODO
+ * Add URL parameters
+ * Add annotation data
+ * Add multi
  */
 
 export class AnnotationPageExperimental extends TatorPage {

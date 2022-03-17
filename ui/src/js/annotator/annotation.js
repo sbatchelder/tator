@@ -716,7 +716,51 @@ const MouseMode =
         NEW_POLY: 7
       };
 
+export class CanvasProgressBarOverlay extends TatorElement {
+  constructor() {
+    super();
 
+    this._progressBarDiv = document.createElement("div");
+    this._progressBarDiv.setAttribute("class", "video-progress-bar");
+    this._progressBarSpan = document.createElement("span");
+    this._progressBarDiv.appendChild(this._progressBarSpan);
+    this._shadow.appendChild(this._progressBarDiv);
+    this._progressBarDiv.classList.add("inactive");
+    this._progressBarDiv.classList.remove("active");
+    this._percentage = 0;
+  }
+
+  toggleDisplay(display) {
+    if (display) {
+      this._progressBarDiv.classList.add("active");
+      this._progressBarDiv.classList.remove("inactive");
+    }
+    else {
+      this._progressBarDiv.classList.add("inactive");
+      this._progressBarDiv.classList.remove("active");
+    }
+  }
+
+  setFillPercentage(percentage, increasing) {
+    if (increasing && this._percentage > percentage) {
+      return;
+    }
+    this._percentage = percentage;
+    this._progressBarSpan.style.width = `${percentage}%`;
+  }
+
+  resize(width, height) {
+    this.style.marginLeft=`-${width}px`;
+    this.style.marginTop=`${height - 7}px`;
+    this.style.width=`${width}px`;
+    this.style.height=`6px`;
+    this.style.display = null;
+  }
+}
+
+if (!customElements.get("canvas-progress-bar-overlay")) {
+  customElements.define("canvas-progress-bar-overlay", CanvasProgressBarOverlay);
+}
 
 // Defines a helper object to place text over the video canvas
 export class TextOverlay extends TatorElement {
@@ -924,6 +968,10 @@ export class AnnotationCanvas extends TatorElement
     this._canvas.style.zIndex = -1;
     this._shadow.appendChild(this._canvas);
 
+    this._progressBar = document.createElement("canvas-progress-bar-overlay");
+    this._progressBar.style.position = "absolute";
+    this._shadow.appendChild(this._progressBar);
+
     this._textOverlay = document.createElement("text-overlay");
     this._textOverlay.style.position = "absolute";
     this._textOverlay.style.display = "none"; // Don't display until a resize
@@ -1029,6 +1077,14 @@ export class AnnotationCanvas extends TatorElement
     {
       console.warn("No offscreen canvas capability.");
     }
+  }
+
+  toggleProgressBar(display) {
+    this._progressBar.toggleDisplay(display);
+  }
+
+  setProgressBarPercentage(percentage, increasingOnly) {
+    this._progressBar.setFillPercentage(percentage, increasingOnly);
   }
 
   get contextMenuNone() {
@@ -1559,6 +1615,7 @@ export class AnnotationCanvas extends TatorElement
                                }
                              });
     this._textOverlay.resize(this.clientWidth, this.clientHeight);
+    this._progressBar.resize(this.clientWidth, this.clientHeight);
   }
 
   setupResizeHandler(dims, numGridRows, heightPadObject)
@@ -1621,6 +1678,7 @@ export class AnnotationCanvas extends TatorElement
                                  }
                                });
       that._textOverlay.resize(that.clientWidth, that.clientHeight);
+      that._progressBar.resize(this.clientWidth, this.clientHeight);
       that.dispatchEvent(new Event("canvasResized"));
     }
 

@@ -1260,7 +1260,7 @@ export class VideoCanvas extends AnnotationCanvas {
     this._onDemandPlaybackReady = false;
     this._onDemandFinished = false;
     this._onDemandId = 0;
-
+    this._onDemandReadyPercentage = 0.0;
 
     this.initialized = false;
   }
@@ -1717,7 +1717,10 @@ export class VideoCanvas extends AnnotationCanvas {
           }
           that.dispatchEvent(new CustomEvent("onDemandDetail",
                                              {composed: true,
-                                              detail: {"ranges": ranges_list}
+                                              detail: {
+                                                "ranges": ranges_list,
+                                                "readyPercentage": that._onDemandReadyPercentage
+                                              }
                                               }));
         }
 
@@ -2961,6 +2964,7 @@ export class VideoCanvas extends AnnotationCanvas {
     this.shutdownOnDemandDownload();
 
     // Prefetch ondemand download data so it's ready to go.
+    this._onDemandReadyPercentage = 0;
     this._onDemandInit = false;
     this._onDemandInitSent = false;
     this._onDemandPlaybackReady = false;
@@ -2987,6 +2991,7 @@ export class VideoCanvas extends AnnotationCanvas {
       }
 
       var playCallback = function () {
+        that._onDemandReadyPercentage = 0;
         that._onDemandInit = false;
         that._onDemandInitSent = false;
         that._onDemandPlaybackReady = false;
@@ -3226,7 +3231,8 @@ export class VideoCanvas extends AnnotationCanvas {
                     }
 
                     video.resetOnDemandBuffer().then(() => {
-                      this._onDemandDownloadTimeout = setTimeout(() => {
+                      this._onDemandDownloadTimeout = setTimeout(() => {            
+                        this._onDemandReadyPercentage = 0;
                         this._onDemandInit = false;
                         this._onDemandInitSent = false;
                         this._onDemandPlaybackReady = false;
@@ -3269,6 +3275,11 @@ export class VideoCanvas extends AnnotationCanvas {
           }
 
           //console.log(`(start/end/current/timeToEnd): ${start} ${end} ${currentTime} ${timeToEnd}`)
+          this._onDemandReadyPercentage = timeToEnd / Math.max(playbackReadyThreshold, 1);
+          this._onDemandReadyPercentage = this._onDemandReadyPercentage * 100;
+          if (this._onDemandReadyPercentage > 100) { this._onDemandReadyPercentage = 100.0; }
+          if (this._onDemandReadyPercentage < 0) { this._onDemandReadyPercentage = 0.0; }
+          console.log(`!!!!!!!!!!!!!!!!!!! ${this._onDemandReadyPercentage} ${timeToEnd} ${playbackReadyThreshold}`);
         }
         if (!foundMatchingRange && this._onDemandPendingDownloads < 1 && !this._onDemandPlaybackReady)
         {
@@ -3280,6 +3291,7 @@ export class VideoCanvas extends AnnotationCanvas {
             this._onDemandInitSent = false;
             this._onDemandInit = false;
             this._onDemandPlaybackReady = false;
+            this._onDemandReadyPercentage = 0;
           }
           else
           {
@@ -3306,7 +3318,8 @@ export class VideoCanvas extends AnnotationCanvas {
                     this._onDemandInit = false;
                     this._onDemandInitSent = false;
                     this._onDemandPlaybackReady = false;
-                    this._onDemandFinished = false;
+                    this._onDemandFinished = false;            
+                    this._onDemandReadyPercentage = 0;
                     this.onDemandDownload()}, 50);
                 });
                 return;
