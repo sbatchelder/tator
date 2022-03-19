@@ -100,14 +100,16 @@ export class SeekBarExperimental extends TatorElement {
 
     this.loadProgress = document.createElement("div");
     this.loadProgress.setAttribute("class", "range-loaded");
-    this.onDemandProgress = document.createElement("div");
-    this.onDemandProgress.setAttribute("class", "range-ondemand");
     this.bar.appendChild(this.loadProgress);
-    this.bar.appendChild(this.onDemandProgress);
 
     this._min = 0;
     this._max = 100;
     this._value = 0;
+  }
+
+  setStyle(barClass, loadedClass) {
+    this.bar.setAttribute("class", `${barClass} select-pointer`);
+    this.loadProgress.setAttribute("class", `${loadedClass}`);
   }
 
   changeVisualType(visualType) {

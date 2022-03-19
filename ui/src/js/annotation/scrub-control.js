@@ -29,10 +29,16 @@ export class ScrubControl extends TatorElement {
     select.selectedIndex = 0; // Play
     select.addEventListener("change", evt => {
       const choice = evt.target.value;
-      this.dispatchEvent(new CustomEvent("scrubControlChange", {
-        detail: {choice: choice},
-        composed: true
-      }));
+
+      if (choice == "Play") {
+        this.dispatchEvent(new Event("play"));
+      }
+      else if (choice == "Load") {
+        this.dispatchEvent(new Event("load"));
+      }
+      else if (choice == "Summary") {
+        this.dispatchEvent(new Event("summary"));
+      }
     });
   }
 
