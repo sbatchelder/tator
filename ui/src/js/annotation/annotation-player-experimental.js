@@ -50,6 +50,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     settingsDiv.appendChild(this._frameTimeButton);
 
     this._scrubControl = document.createElement("scrub-control");
+    this._scrubControl.setAttribute("class", "mr-6");
     settingsDiv.appendChild(this._scrubControl);
 
     this._rateControl = document.createElement("rate-control");
@@ -161,13 +162,26 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._allowSafeMode = Number(searchParams.get("safeMode")) == 1;
     }
 
+    this._videoMode = "play"; // play | summary | load
+
     /**
      * Video event listeners
      */
 
     this._video.addEventListener("bufferLoaded", evt => {
-      this._videoTimeline.playBufferLoaded(evt.detail.percent_complete);
-      this.checkReady();
+      // #TODO This will be adjusted when there is a separate buffer for the summary vs. the play
+      var percentComplete = evt.detail.percent_complete;
+      if (this._videoMode == "play") {
+        var globalFrame = Math.min(this._lastGlobalFrame, Math.round(this._lastGlobalFrame * percentComplete));
+        if (this._playWindowInfo.globalStartFrame > globalFrame) {
+          percentComplete = 0;
+        }
+        else {
+          percentComplete = Math.min(globalFrame / this._playWindowInfo.globalEndFrame, 1);
+        }
+      }
+      this._summaryLoadedPercentage = evt.detail.percent_complete;
+      this._slider.onBufferLoaded(percentComplete);
     });
 
     this._video.addEventListener("onDemandDetail", evt => {
@@ -205,7 +219,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._currentFrameText.textContent = frame;
       this._currentTimeText.style.width = 10 * (time.length - 1) + 5 + "px";
       this._currentFrameText.style.width = (15 * String(frame).length) + "px";
-      this._videoTimeline.frameChange(frame);
+      this._setTimeControlStyle();
+      this._slider.value = frame;
     });
 
     this._video.addEventListener("playbackEnded", () => {
@@ -217,7 +232,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     });
 
     this._video.addEventListener("playbackReady", () => {
-      if (this.is_paused()) {
+      if (this.is_paused() && this._videoMode == "play") {
         this._video.setProgressBarPercentage(100);
         this._video.toggleProgressBar(false);
         this._play._button.removeAttribute("disabled");
@@ -351,6 +366,44 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._slider.addEventListener("change", evt => {
       this.handleSliderChange(evt);
+    });
+
+    this._scrubControl.addEventListener("play", () => {
+      this._setToPlayMode();
+    });
+
+    this._scrubControl.addEventListener("summary", () => {
+      // Show and change the video timeline to summary mode (set the global start and end)
+      // Hide the loading timeline
+      // Disable the play buttons, rate control, and quality control
+      // Disable the onDemand playback
+      this._videoMode = "summary";
+
+      this._slider.setAttribute("min", 0);
+      this._slider.setAttribute("max", this._lastGlobalFrame);
+      this._slider.setStyle("blue-iris-range-div", "blue-iris-range-loaded");
+
+      this._videoTimeline.init(
+        0,
+        this._lastGlobalFrame,
+        this._mediaInfo.fps);
+
+      this._setTimeControlStyle();
+      this._qualityControl.setAttribute("disabled", "");
+      this._rateControl.setAttribute("disabled", "");
+
+      this._video.toggleProgressBar(false);
+      this._playerDownloadDisabled = true;
+      this._play._button.setAttribute("disabled", "");
+      fastForward.setAttribute("disabled", "");
+      rewind.setAttribute("disabled", "");
+    });
+
+    this._scrubControl.addEventListener("load", () => {
+      // Hide the video timeline
+      // Show the loading timeline
+      // Disable the play buttons
+      this._videoMode = "load";
     });
 
     /**
@@ -506,11 +559,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._totalTime.textContent = "/ " + this._frameToTime(val.num_frames);
     this._totalTime.style.width = 10 * (this._totalTime.textContent.length - 1) + 5 + "px";
 
-    this._videoTimeline.init(
-      this._slider,
-      0,
-      this._mediaInfo.num_frames,
-      this._fps);
+    // Initialize the media segments and the current play window
+    this._initializeMediaTimeline(this._mediaInfo);
+    this._setPlayWindow(0);
 
     this._video.loadFromVideoObject(val, this.mediaType, this._quality, null, null, null, this._videoHeightPadObject, this._seekQuality, this._scrubQuality)
       .then(() => {
@@ -523,7 +574,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
         const seekInfo = this._video.getQuality("seek");
         const scrubInfo = this._video.getQuality("scrub");
         const playInfo = this._video.getQuality("play");
-        this.checkReady();
+
+        this._setToPlayMode();
 
         this.dispatchEvent(new CustomEvent("defaultVideoSettings", {
           composed: true,
@@ -578,25 +630,123 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._video.annotationData = val;
   }
 
+  _setToPlayMode() {
+    this._videoMode = "play";
+
+    this._videoTimeline.init(
+      this._playWindowInfo.globalStartFrame,
+      this._playWindowInfo.globalEndFrame,
+      this._mediaInfo.fps);
+
+    this._slider.setAttribute("min", this._playWindowInfo.globalStartFrame);
+    this._slider.setAttribute("max", this._playWindowInfo.globalEndFrame);
+    this._slider.setStyle("range-div", "range-loaded");
+
+    this._setTimeControlStyle();
+    this._qualityControl.removeAttribute("disabled");
+    this._rateControl.removeAttribute("disabled");
+
+    // Performing the checkReady function will force the playback buttons to re-enable
+    // and the ondemand to redownload
+    this._playerDownloadDisabled = false;
+    this._video.setOnDemandPlaybackNotReady();
+    this.handleNotReadyEvent(); // #TODO this might just be check ready + enable play
+  }
+
+  _setTimeControlStyle() {
+    if (this._videoMode == "play") {
+      if (this._video.currentFrame() > this._playWindowInfo.globalEndFrame || this._video.currentFrame() < this._playWindowInfo.globalStartFrame) {
+        this._currentTimeText.classList.add("text-purple");
+        this._currentFrameText.classList.add("text-purple");
+      }
+      else {
+        this._currentTimeText.classList.remove("text-purple");
+        this._currentFrameText.classList.remove("text-purple");
+      }
+    }
+    else {
+      this._currentTimeText.classList.remove("text-purple");
+      this._currentFrameText.classList.remove("text-purple");
+    }
+  }
+
   /**
    * Creates the global timeline, creating an internal mapping of the media and global frame/time.
    * Call this when the media has been collected.
    *
    * #TODO This will likely change with the append logic. For now, this will just use a single
    *       video media and its num_frames
+   *
+   * This should be executed during media initialization so that other components of the
+   * annotator can be initialized.
+   *
+   * @param {Tator.Media} initMedia
+   * @postcondition this._playWindowInfo is set
+   * @postcondition this._mediaMap is set
    */
-  _initGlobalTimeline() {
+  _initializeMediaTimeline(initMedia) {
 
-    // #TODO Update this
-    this._playWindowFrames = 10000;
+    this._mediaMap = [];
 
+    // #TODO Change this later to deal with the append logic
+    var mediaList = [initMedia];
+
+    // Create the map that is used to associate a global frame with media
+    var globalFrame = 0;
+    for (const media of mediaList) {
+      var mapObject = {
+        globalStartFrame: globalFrame,
+        media: media
+      };
+      globalFrame += media.num_frames - 1;
+      mapObject.globalEndFrame = globalFrame;
+      globalFrame += 1;
+    }
+    this._lastGlobalFrame = globalFrame - 1;
+
+    const windowSize = Math.floor(initMedia.num_frames / 5);
+    this._playWindowInfo = {
+      globalStartFrame: 0,
+      globalEndFrame: windowSize - 1,
+      windowSize: windowSize,
+      fps: initMedia.fps
+    };
   }
 
   /**
-   *
+   * @param {integer} globalFrame
+   * @returns Tator.Media
    */
-  _setPlayWindow(startFrame) {
+  _getMedia(globalFrame) {
+    for (const info of this._mediaMap) {
+      if (globalFrame >= info.globalStartFrame && globalFrame <= info.globalEndFrame) {
+        return info.media;
+      }
+    }
+    console.error(`No matching mediaMap entry for global frame: ${globalFrame}`);
+    return null;
+  }
 
+  /**
+   * Play buffer window set using the provided global start frame. Will enforce windowSize.
+   * @param {integer} globalStartFrame
+   */
+  _setPlayWindow(globalStartFrame) {
+    if (globalStartFrame + this._playWindowInfo.windowSize > this._lastGlobalFrame) {
+      this._playWindowInfo.globalStartFrame = this._lastGlobalFrame - this._playWindowInfo.windowSize + 1;
+      this._playWindowInfo.globalEndFrame = this._lastGlobalFrame;
+    }
+    else {
+      this._playWindowInfo.globalStartFrame = globalStartFrame;
+      this._playWindowInfo.globalEndFrame = globalStartFrame + this._playWindowInfo.windowSize - 1
+    }
+  }
+
+  /**
+   * @returns {Object}
+   */
+  _getCurrentPlayWindow() {
+    return this._playWindowInfo;
   }
 
   /**
@@ -619,6 +769,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
       const minFormatted = ("0" + Math.floor(minutes % 60)).slice(-2);
       return hours + ":" + minFormatted + ":" + secFormatted;
     }
+  }
+
+  _timeToFrame(minutes, seconds) {
+    var frame = minutes * 60 * this._fps + seconds * this._fps + 1;
+    return frame;
   }
 
   disableAutoDownloads(){
@@ -695,7 +850,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
     // Use the hq buffer when the input is finalized
     this._video.seekFrame(frame, this._video.drawFrame, true).then(() => {
       this._lastScrub = Date.now()
-      this._video.onDemandDownloadPrefetch(frame);
+      if (!this._playerDownloadDisabled) {
+        this._video.onDemandDownloadPrefetch(frame);
+      }
       this._videoStatus = "paused";
       this.checkReady();
       this.dispatchEvent(new Event("hideLoading", {composed: true}));
@@ -909,19 +1066,23 @@ export class AnnotationPlayerExperimental extends TatorElement {
           console.log(`Video playback check - Ready [Now: ${new Date().toISOString()}]`);
           this._video.setProgressBarPercentage(100);
           this._video.toggleProgressBar(false);
-          this._play._button.removeAttribute("disabled");
-          this._rewind.removeAttribute("disabled")
-          this._fastForward.removeAttribute("disabled");
-          this._play.removeAttribute("tooltip");
+          if (this._videoMode == "play") {
+            this._play._button.removeAttribute("disabled");
+            this._rewind.removeAttribute("disabled")
+            this._fastForward.removeAttribute("disabled");
+            this._play.removeAttribute("tooltip");
+          }
         }).catch((e) => {
           console.log(e);
           console.log(`Video playback check - Ready [Now: ${new Date().toISOString()}] (not hq pause)`);
           this._video.setProgressBarPercentage(100);
           this._video.toggleProgressBar(false);
-          this._play._button.removeAttribute("disabled");
-          this._rewind.removeAttribute("disabled")
-          this._fastForward.removeAttribute("disabled");
-          this._play.removeAttribute("tooltip");
+          if (this._videoMode == "play") {
+            this._play._button.removeAttribute("disabled");
+            this._rewind.removeAttribute("disabled")
+            this._fastForward.removeAttribute("disabled");
+            this._play.removeAttribute("tooltip");
+          }
         });
       }
     };
@@ -1098,6 +1259,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
   // Go to the frame at the highest resolution
   goToFrame(frame) {
     this._video.onPlay();
+    this._setTimeControlStyle();
     return this._video.gotoFrame(frame, true);
   }
 

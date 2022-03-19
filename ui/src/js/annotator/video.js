@@ -1273,6 +1273,10 @@ export class VideoCanvas extends AnnotationCanvas {
     this._disableAutoDownloads = true;
   }
 
+  setOnDemandPlaybackNotReady() {
+    this._onDemandPlaybackReady = false;
+  }
+
   // #TODO Refactor this so that it uses internal variables?
   updateVideoDiagnosticOverlay(display, currentFrame, sourceFPS, actualFPS, playQuality, scrubQuality, seekQuality, id) {
     if (this._mediaType.dtype == "video" || this._mediaType.dtype == "multi") {

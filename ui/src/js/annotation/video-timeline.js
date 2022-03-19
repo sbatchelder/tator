@@ -23,10 +23,11 @@ export class VideoTimeline extends TatorElement {
       .append("svg")
       .attr("preserveAspectRatio", "xMidYMid meet")
       .style("font", "14px sans-serif")
-      .style("color", "#a2afcd");
+      .style("color", "#6d7a96");
 
     window.addEventListener("resize", this._updateSvgData());
     this._displayMode = "frame";
+    this._axisColor = "#6d7a96";
   }
 
   /**
@@ -103,7 +104,9 @@ export class VideoTimeline extends TatorElement {
         }))
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
     }
-    var xAxisG = this._mainSvg.append("g")
+    this._xAxis = xAxis;
+
+    this._xAxisG = this._mainSvg.append("g")
       .style("font-size", "12px")
       .call(xAxis);
 
@@ -117,11 +120,11 @@ export class VideoTimeline extends TatorElement {
       .attr("r", 5)
       .attr("opacity", "0");
 
-    this._hoverFrameTextBackground = xAxisG.append("rect")
+    this._hoverFrameTextBackground = this._xAxisG.append("rect")
       .attr("width", this._mainWidth)
       .attr("height", this._mainStep);
 
-    this._hoverFrameText = xAxisG.append("text")
+    this._hoverFrameText = this._xAxisG.append("text")
       .style("font-size", "14px")
       .attr("x", this._mainWidth * 0.4)
       .attr("y", 10)
@@ -214,21 +217,15 @@ export class VideoTimeline extends TatorElement {
    * Call this to initialize the timeline.
    * This will default the display mode to frames.
    *
-   * @param {TatorElement} slider #TODO This needs to be removed
    * @param {integer} minFrame
    * @param {integer} maxFrame
    * @param {float} fps
    */
-  init(slider, minFrame, maxFrame, fps) {
+  init(minFrame, maxFrame, fps) {
     this._minFrame = minFrame;
     this._maxFrame = maxFrame;
     this._fps = fps;
-
-    this._slider = slider;
-    this._slider.setAttribute("min", minFrame);
-    this._slider.setAttribute("max", maxFrame);
-
-    this._displayMode = "frame";
+    this.redraw();
   }
 
   /**
@@ -245,19 +242,9 @@ export class VideoTimeline extends TatorElement {
     this._updateSvgData();
   }
 
-  /**
-   * Percentage loaded for video scrubbing
-   * @param {float} percentage - 0.0 to 1.0
-   */
-  playBufferLoaded(percentage) {
-    this._slider.onBufferLoaded(percentage);
-  }
-
-  /**
-   * @param {integer} frame Frame to change to
-   */
-  frameChange(frame) {
-    //#TODO
+  updateTimelineColor(axisColor) {
+    this._axisColor = axisColor;
+    this._updateSvgData();
   }
 }
 
