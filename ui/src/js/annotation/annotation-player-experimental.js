@@ -233,12 +233,21 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._video.addEventListener("playbackReady", () => {
       if (this.is_paused() && this._videoMode == "play") {
-        this._video.setProgressBarPercentage(100);
-        this._video.toggleProgressBar(false);
-        this._play._button.removeAttribute("disabled");
-        this._rewind.removeAttribute("disabled")
-        this._fastForward.removeAttribute("disabled");
-        this._play.removeAttribute("tooltip");
+        if(this._frameInPlayWindow(this._currentGlobalFrame())) {
+          this._video.setProgressBarPercentage(100);
+          this._video.toggleProgressBar(false);
+          this._play._button.removeAttribute("disabled");
+          this._rewind.removeAttribute("disabled")
+          this._fastForward.removeAttribute("disabled");
+          this._play.removeAttribute("tooltip");
+        }
+        else {
+          this._play._button.setAttribute("disabled","");
+          // Use some spaces because the tooltip z-index is wrong
+          this._play.setAttribute("tooltip", "    Not in play window");
+          this._rewind.setAttribute("disabled","")
+          this._fastForward.setAttribute("disabled","");
+        }
       }
     });
 
@@ -630,6 +639,21 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._video.annotationData = val;
   }
 
+
+  _currentGlobalFrame() {
+    // #TODO Update once we actually have true windowing
+    return this._video.currentFrame();
+  }
+
+  /**
+   *
+   * @param {integer} frame
+   * @returns {boolean}
+   */
+  _frameInPlayWindow(frame) {
+    return frame <= this._playWindowInfo.globalEndFrame && frame >= this._playWindowInfo.globalStartFrame;
+  }
+
   _setToPlayMode() {
     this._videoMode = "play";
 
@@ -650,12 +674,14 @@ export class AnnotationPlayerExperimental extends TatorElement {
     // and the ondemand to redownload
     this._playerDownloadDisabled = false;
     this._video.setOnDemandPlaybackNotReady();
-    this.handleNotReadyEvent(); // #TODO this might just be check ready + enable play
+    if (this._frameInPlayWindow(this._currentGlobalFrame())) {
+      this.handleNotReadyEvent(); // #TODO this might just be check ready + enable play
+    }
   }
 
   _setTimeControlStyle() {
     if (this._videoMode == "play") {
-      if (this._video.currentFrame() > this._playWindowInfo.globalEndFrame || this._video.currentFrame() < this._playWindowInfo.globalStartFrame) {
+      if (!this._frameInPlayWindow(this._video.currentFrame())) {
         this._currentTimeText.classList.add("text-purple");
         this._currentFrameText.classList.add("text-purple");
       }
@@ -890,8 +916,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._currentFrameInput.classList.remove("has-border");
     this._currentFrameInput.classList.remove("is-invalid");
-    this.goToFrame(frame);
-    this.checkReady();
+    this.goToFrame(frame).then(() => {
+      this.checkReady();
+    });
   }
 
   /**
@@ -941,8 +968,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._currentTimeInput.classList.remove("has-border");
     this._currentTimeInput.classList.remove("is-invalid");
-    this.goToFrame(frame);
-    this.checkReady();
+    this.goToFrame(frame).then(() => {
+      this.checkReady();
+    });
   }
 
   addDomParent(val)
@@ -966,8 +994,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
   checkReady()
   {
-    if (this._video.bufferDelayRequired() && this._video._onDemandPlaybackReady != true)
-    {
+    if (this._video.bufferDelayRequired() &&
+      this._video._onDemandPlaybackReady != true &&
+      this._frameInPlayWindow(this._currentGlobalFrame())) {
       this.handleNotReadyEvent();
     }
   }
@@ -1260,6 +1289,14 @@ export class AnnotationPlayerExperimental extends TatorElement {
   goToFrame(frame) {
     this._video.onPlay();
     this._setTimeControlStyle();
+    if(this._videoMode == "play" && !this._frameInPlayWindow(frame)) {
+      this._play._button.setAttribute("disabled","");
+      // Use some spaces because the tooltip z-index is wrong
+      this._play.setAttribute("tooltip", "    Not in play window");
+      this._rewind.setAttribute("disabled","")
+      this._fastForward.setAttribute("disabled","");
+    }
+
     return this._video.gotoFrame(frame, true);
   }
 
