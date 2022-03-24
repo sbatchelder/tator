@@ -1,7 +1,5 @@
 import { TatorElement } from "../components/tator-element.js";
 import * as d3 from "d3";
-import { timeHours } from "d3";
-
 /**
  * Web component that displays the video timeline axis in the annotator.
  *
@@ -82,7 +80,7 @@ export class VideoTimeline extends TatorElement {
 
     // Define the axes
     this._mainX = d3.scaleLinear()
-      .domain([0, maxFrame])
+      .domain([this._minFrame, this._maxFrame])
       .range([0, this._mainWidth])
 
     // #TODO This is clunky and has no smooth transition, but it works for our application

@@ -94,6 +94,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
     var innerDiv = document.createElement("div");
     this._videoTimeline = document.createElement("video-timeline");
     innerDiv.appendChild(this._videoTimeline);
+    this._videoSegmentSelector = document.createElement("video-segment-selector");
+    this._videoSegmentSelector.hidden = true;
+    innerDiv.appendChild(this._videoSegmentSelector);
     outerDiv.appendChild(innerDiv);
     this._timelineDiv.appendChild(outerDiv);
 
@@ -141,8 +144,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
      // Magic number matching standard header + footer
      // #TODO This should be re-thought and more flexible initially
-    this._videoHeightPadObject = {height: 250};
     this._headerFooterPad = 100; // Another magic number based on the header and padding below controls footer
+    this._videoHeightPadObject = {height: 250};
 
     const searchParams = new URLSearchParams(window.location.search);
     this._quality = 720;
@@ -350,15 +353,22 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._frameTimeButton.addEventListener("time", () => {
       this._videoTimeline.setDisplayMode("relativeTime");
+      this._videoSegmentSelector.setDisplayMode("relativeTime");
     });
 
     this._frameTimeButton.addEventListener("frame", () => {
       this._videoTimeline.setDisplayMode("frame");
+      this._videoSegmentSelector.setDisplayMode("frame");
     });
 
     /**
      * Seek/timeline event listeners
      */
+
+    this._videoSegmentSelector.addEventListener("setPlayWindow", evt => {
+      this._setPlayWindow(evt.detail.newWindowStart);
+      this._setToPlayMode();
+    });
 
     this._videoTimeline.addEventListener("input", evt => {
       this.handleSliderInput(evt);
@@ -382,15 +392,14 @@ export class AnnotationPlayerExperimental extends TatorElement {
     });
 
     this._scrubControl.addEventListener("summary", () => {
-      // Show and change the video timeline to summary mode (set the global start and end)
-      // Hide the loading timeline
-      // Disable the play buttons, rate control, and quality control
-      // Disable the onDemand playback
       this._videoMode = "summary";
 
       this._slider.setAttribute("min", 0);
       this._slider.setAttribute("max", this._lastGlobalFrame);
       this._slider.setStyle("blue-iris-range-div", "blue-iris-range-loaded");
+
+      this._videoTimeline.style.display = "none";
+      this._videoSegmentSelector.style.display = "block";
 
       this._videoTimeline.init(
         0,
@@ -406,13 +415,18 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._play._button.setAttribute("disabled", "");
       fastForward.setAttribute("disabled", "");
       rewind.setAttribute("disabled", "");
-    });
 
-    this._scrubControl.addEventListener("load", () => {
-      // Hide the video timeline
-      // Show the loading timeline
-      // Disable the play buttons
-      this._videoMode = "load";
+      this._videoSegmentSelector.init(
+        this._lastGlobalFrame,
+        this._playWindowInfo.globalStartFrame,
+        this._playWindowInfo.globalEndFrame,
+        this._mediaInfo.fps
+      );
+
+      this._videoTimeline.hidden = false;
+      this._videoSegmentSelector.hidden = false;
+
+      this._resizeWindow();
     });
 
     /**
@@ -657,6 +671,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
   _setToPlayMode() {
     this._videoMode = "play";
 
+    this._videoTimeline.style.display = "block";
+    this._videoSegmentSelector.style.display = "none";
+
     this._videoTimeline.init(
       this._playWindowInfo.globalStartFrame,
       this._playWindowInfo.globalEndFrame,
@@ -667,6 +684,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._slider.setStyle("range-div", "range-loaded");
 
     this._setTimeControlStyle();
+    this._scrubControl.setValue("Play");
     this._qualityControl.removeAttribute("disabled");
     this._rateControl.removeAttribute("disabled");
 
@@ -677,6 +695,13 @@ export class AnnotationPlayerExperimental extends TatorElement {
     if (this._frameInPlayWindow(this._currentGlobalFrame())) {
       this.handleNotReadyEvent(); // #TODO this might just be check ready + enable play
     }
+
+    this._resizeWindow();
+  }
+
+  _resizeWindow() {
+    this._videoHeightPadObject.height = this._headerFooterPad + this._controls.offsetHeight + this._timelineDiv.offsetHeight;
+    window.dispatchEvent(new Event("resize"));
   }
 
   _setTimeControlStyle() {
