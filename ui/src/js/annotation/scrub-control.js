@@ -18,8 +18,8 @@ export class ScrubControl extends TatorElement {
     div.appendChild(select);
     this._select = select;
 
-    const choices = ["Play", "Load", "Summary"];
-    for (const choice of choices)
+    this._choices = ["Play", "Summary"];
+    for (const choice of this._choices)
     {
       let option = document.createElement("option");
       option.setAttribute("value", choice);
@@ -32,9 +32,6 @@ export class ScrubControl extends TatorElement {
 
       if (choice == "Play") {
         this.dispatchEvent(new Event("play"));
-      }
-      else if (choice == "Load") {
-        this.dispatchEvent(new Event("load"));
       }
       else if (choice == "Summary") {
         this.dispatchEvent(new Event("summary"));
@@ -56,6 +53,10 @@ export class ScrubControl extends TatorElement {
         }
         break;
     }
+  }
+
+  setValue(val) {
+    this._select.value = val;
   }
 }
 

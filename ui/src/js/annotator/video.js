@@ -2356,7 +2356,7 @@ export class VideoCanvas extends AnnotationCanvas {
     {
       // Set the seek buffer, and command worker to get the seek
       // response
-      document.body.style.cursor = "progress";
+      //document.body.style.cursor = "progress";
 
       this._masked=true;
       // Only mask edits if seeking to a different frame
