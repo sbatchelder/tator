@@ -128,6 +128,25 @@ export class VideoTimeline extends TatorElement {
       .attr("y", 10)
       .attr("fill", "#fafafa");
 
+    this._zoom = d3.zoom()
+      .scaleExtent([1, 10])
+      .translateExtent([[0, 0], [this._mainWidth, this._mainHeight]])
+      .on("zoom", function (event) {
+        that._mainX.range([0, that._mainWidth].map(d => event.transform.applyX(d)));
+        that._xAxisG.call(that._xAxis);
+
+
+        console.log(`new x-axis: ${that._mainX.invert(0)} ${that._mainX.invert(that._mainWidth)}`);
+        that.dispatchEvent(new CustomEvent("newFrameRange", {
+          detail: {
+            start: Math.max(0,Math.round(that._mainX.invert(0))),
+            end: Math.min(that._maxFrame,Math.round(that._mainX.invert(that._mainWidth)))
+          }
+        }));
+      });
+
+    this._mainSvg.call(this._zoom);
+
     this._mainSvg.on("click", function(event, d) {
       var selectedFrame = parseInt(that._mainX.invert(d3.pointer(event)[0]));
       if (selectedFrame >= that._minFrame && selectedFrame <= that._maxFrame) {
@@ -243,6 +262,26 @@ export class VideoTimeline extends TatorElement {
   updateTimelineColor(axisColor) {
     this._axisColor = axisColor;
     this._updateSvgData();
+  }
+
+  /**
+   * Manual zoom controls
+   */
+
+  zoomIn() {
+    this._zoom.scaleBy(this._mainSvg.transition().duration(250), 2);
+  }
+  zoomOut() {
+    this._zoom.scaleBy(this._mainSvg.transition().duration(250), 0.5);
+  }
+  panLeft() {
+    this._zoom.translateBy(this._mainSvg.transition().duration(250), 50, 0);
+  }
+  panRight() {
+    this._zoom.translateBy(this._mainSvg.transition().duration(250), -50, 0);
+  }
+  resetZoom() {
+    this._zoom.scaleTo(this._mainSvg.transition().duration(250), 1);
   }
 }
 
