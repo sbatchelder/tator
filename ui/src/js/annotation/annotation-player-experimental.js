@@ -46,12 +46,116 @@ export class AnnotationPlayerExperimental extends TatorElement {
     settingsDiv.setAttribute("class", "d-flex flex-items-center");
     div.appendChild(settingsDiv);
 
+    this._timelineControlsDiv = document.createElement("div");
+    this._timelineControlsDiv.setAttribute("class", "video-timeline-control d-flex flex-row flex-items-center flex-justify-between rounded-1");
+    this._timelineControlsDiv.style.display = "none";
+    this._shadow.appendChild(this._timelineControlsDiv);
+
+    this._timelineZoomButtons = {
+      panLeft: null,
+      panRight: null,
+      zoomIn: null,
+      zoomOut: null,
+      reset: null
+    }
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><polyline points="15 18 9 12 15 6"></polyline></svg>`,
+      "Pan Timeline Left",
+      "pan-timeline-left-btn"
+    );
+    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomButtons.panLeft = btn;
+    btn.addEventListener("click", () => {
+      this._videoTimeline.panLeft();
+    });
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+      "Pan Timeline Right",
+      "pan-timeline-right-btn"
+    );
+    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomButtons.panRight = btn;
+    btn.addEventListener("click", () => {
+      this._videoTimeline.panRight();
+    });
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`,
+      "Zoom Timeline In",
+      "zoom-timeline-in-btn"
+    );
+    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomButtons.zoomIn = btn;
+    btn.addEventListener("click", () => {
+      this._videoTimeline.zoomIn();
+    });
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`,
+      "Zoom Timeline Out",
+      "zoom-timeline-out-btn"
+    );
+    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomButtons.zoomOut = btn;
+    btn.addEventListener("click", () => {
+      this._videoTimeline.zoomOut();
+    });
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>`,
+      "Reset Timeline",
+      "reset-timeline-btn"
+    );
+    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomButtons.reset = btn;
+    btn.addEventListener("click", () => {
+      this._videoTimeline.resetZoom();
+    });
+
     this._frameTimeButton = document.createElement("frame-time-button");
-    settingsDiv.appendChild(this._frameTimeButton);
+    this._frameTimeButton.addEventListener("time", () => {
+      this._videoTimeline.setDisplayMode("relativeTime");
+      this._videoSegmentSelector.setDisplayMode("relativeTime");
+    });
+
+    this._frameTimeButton.addEventListener("frame", () => {
+      this._videoTimeline.setDisplayMode("frame");
+      this._videoSegmentSelector.setDisplayMode("frame");
+    });
+
+    this._timelineControlsDiv.appendChild(this._frameTimeButton);
 
     this._scrubControl = document.createElement("scrub-control");
-    this._scrubControl.setAttribute("class", "mr-6");
     settingsDiv.appendChild(this._scrubControl);
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>`,
+      "Video Timeline Controls",
+      "video-timeline-controls-btn"
+    );
+    btn._button.classList.remove("px-2");
+    btn.setAttribute("class", "mr-6");
+    settingsDiv.appendChild(btn);
+    this._videoTimelineControlsBtn = btn;
+    btn.addEventListener("click", () => {
+      btn.blur();
+      var pos = this._videoTimelineControlsBtn.getBoundingClientRect();
+      this._timelineControlsDiv.style.top = `${pos.top - 60}px`;
+      this._timelineControlsDiv.style.left = `${pos.left - 100}px`;
+      if (this._timelineControlsDiv.style.display == "flex") {
+        this._timelineControlsDiv.style.display = "none";
+      }
+      else {
+        this._timelineControlsDiv.style.display = "flex";
+      }
+    });
 
     this._rateControl = document.createElement("rate-control");
     settingsDiv.appendChild(this._rateControl);
@@ -166,6 +270,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     }
 
     this._videoMode = "play"; // play | summary | load
+
+    window.addEventListener("resize", this._resizeHandler.bind(this));
 
     /**
      * Video event listeners
@@ -351,16 +457,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._currentTimeText.style.display = "none";
     });
 
-    this._frameTimeButton.addEventListener("time", () => {
-      this._videoTimeline.setDisplayMode("relativeTime");
-      this._videoSegmentSelector.setDisplayMode("relativeTime");
-    });
-
-    this._frameTimeButton.addEventListener("frame", () => {
-      this._videoTimeline.setDisplayMode("frame");
-      this._videoSegmentSelector.setDisplayMode("frame");
-    });
-
     /**
      * Seek/timeline event listeners
      */
@@ -372,6 +468,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._videoTimeline.addEventListener("input", evt => {
       this.handleSliderInput(evt);
+    });
+
+    this._videoTimeline.addEventListener("newFrameRange", evt => {
+      this._slider.setAttribute("min", evt.detail.start);
+      this._slider.setAttribute("max", evt.detail.end);
     });
 
     this._videoTimeline.addEventListener("selectFrame", evt => {
@@ -702,6 +803,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
   _resizeWindow() {
     this._videoHeightPadObject.height = this._headerFooterPad + this._controls.offsetHeight + this._timelineDiv.offsetHeight;
     window.dispatchEvent(new Event("resize"));
+  }
+
+  _resizeHandler() {
+    this._timelineControlsDiv.style.display = "none";
   }
 
   _setTimeControlStyle() {
