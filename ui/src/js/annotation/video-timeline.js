@@ -13,7 +13,6 @@ export class VideoTimeline extends TatorElement {
     super();
 
     this._timelineDiv = document.createElement("div");
-    this._timelineDiv.setAttribute("class", "py-2");
     this._timelineDiv.id = "video-timeline";
     this._shadow.appendChild(this._timelineDiv);
 
@@ -83,6 +82,10 @@ export class VideoTimeline extends TatorElement {
       .domain([this._minFrame, this._maxFrame])
       .range([0, this._mainWidth])
 
+    if (this._zoomTransform != null) {
+      this._mainX.range([0, this._mainWidth].map(d => this._zoomTransform.applyX(d)));
+    }
+
     // #TODO This is clunky and has no smooth transition, but it works for our application
     //       Potentially worth revisiting in the future and updating the dataset directly
     //       using the traditional d3 enter/update/exit paradigm.
@@ -92,6 +95,7 @@ export class VideoTimeline extends TatorElement {
       var xAxis = g => g
         .attr("transform", `translate(0,${this._mainMargin.top})`)
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d3.format("d")))
+        .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
     }
     else if (this._displayMode == "relativeTime") {
@@ -100,6 +104,7 @@ export class VideoTimeline extends TatorElement {
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d => {
           return that._createTimeStr(d);
         }))
+        .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
     }
     this._xAxis = xAxis;
@@ -132,9 +137,9 @@ export class VideoTimeline extends TatorElement {
       .scaleExtent([1, 10])
       .translateExtent([[0, 0], [this._mainWidth, this._mainHeight]])
       .on("zoom", function (event) {
+        that._zoomTransform = event.transform;
         that._mainX.range([0, that._mainWidth].map(d => event.transform.applyX(d)));
         that._xAxisG.call(that._xAxis);
-
 
         console.log(`new x-axis: ${that._mainX.invert(0)} ${that._mainX.invert(that._mainWidth)}`);
         that.dispatchEvent(new CustomEvent("newFrameRange", {
@@ -147,6 +152,47 @@ export class VideoTimeline extends TatorElement {
 
     this._mainSvg.call(this._zoom);
 
+    if (this._hoverFrame != null) {
+      this._mainFrameLine
+        .attr("opacity", "1.0")
+        .attr("x1", this._mainX(this._hoverFrame))
+        .attr("x2", this._mainX(this._hoverFrame))
+        .attr("y1", -this._mainStep - this._mainMargin.bottom - 3)
+        .attr("y2", this._mainHeight);
+
+        this._hoverFrameText.attr("opacity", "1.0");
+        this._hoverFrameTextBackground.attr("opacity", "1.0");
+
+        if (this._displayMode == "frame") {
+          this._hoverFrameText.text(this._hoverFrame);
+        }
+        else if (this._displayMode == "relativeTime") {
+          this._hoverFrameText.text(this._createTimeStr(this._hoverFrame));
+        }
+
+        if (this._mainX(this._hoverFrame) < this._mainWidth * 0.5) {
+          this._hoverFrameText
+            .attr("x", this._mainX(this._hoverFrame) + 15)
+            .attr("text-anchor", "start");
+        }
+        else {
+          this._hoverFrameText
+            .attr("x", this._mainX(this._hoverFrame) - 15)
+            .attr("text-anchor", "end");
+        }
+
+        var textBBox = this._hoverFrameText.node().getBBox();
+
+        this._hoverFrameTextBackground
+          .attr("opacity", "1.0")
+          .attr("x", textBBox.x - textBBox.width / 4)
+          .attr("y", textBBox.y)
+          .attr("width", textBBox.width + textBBox.width / 2)
+          .attr("height", textBBox.height)
+          .attr("fill", "#151b28");
+    }
+
+    /*
     this._mainSvg.on("click", function(event, d) {
       var selectedFrame = parseInt(that._mainX.invert(d3.pointer(event)[0]));
       if (selectedFrame >= that._minFrame && selectedFrame <= that._maxFrame) {
@@ -221,6 +267,7 @@ export class VideoTimeline extends TatorElement {
         .attr("height", textBBox.height)
         .attr("fill", "#151b28");
     });
+    */
   }
 
   /**
@@ -239,9 +286,16 @@ export class VideoTimeline extends TatorElement {
    * @param {float} fps
    */
   init(minFrame, maxFrame, fps) {
+
+    if (minFrame != this._minFrame && this._maxFrame != maxFrame){
+      // Reset the zoom if the play window has changed
+      this._zoomTransform = null;
+    }
+
     this._minFrame = minFrame;
     this._maxFrame = maxFrame;
     this._fps = fps;
+    this._hoverFrame = null;
     this.redraw();
   }
 
@@ -261,6 +315,16 @@ export class VideoTimeline extends TatorElement {
 
   updateTimelineColor(axisColor) {
     this._axisColor = axisColor;
+    this._updateSvgData();
+  }
+
+  showFrameHover(frame) {
+    this._hoverFrame = frame;
+    this._updateSvgData();
+  }
+
+  hideFrameHover() {
+    this._hoverFrame = null;
     this._updateSvgData();
   }
 
