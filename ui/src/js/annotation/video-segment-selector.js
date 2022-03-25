@@ -255,6 +255,10 @@ export class VideoSegmentSelector extends TatorElement {
       .domain([0, maxFrame])
       .range([0, this._mainWidth])
 
+    if (this._zoomTransform != null) {
+      this._mainX.range([0, this._mainWidth].map(d => this._zoomTransform.applyX(d)));
+    }
+
     var mainY = d3.scaleLinear()
       .domain([0, 1.0])
       .range([0, -this._mainStep]);
@@ -275,7 +279,7 @@ export class VideoSegmentSelector extends TatorElement {
       var xAxis = g => g
         .attr("transform", `translate(0,${this._mainMargin.top + this._mainStep})`)
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d => {
-          return that._createTimeStr(d);
+          return this._createTimeStr(d);
         }))
         .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
@@ -296,6 +300,7 @@ export class VideoSegmentSelector extends TatorElement {
         .attr("height", this._mainStep);
 
     this._mainSvg.append("g")
+        .attr("class", "videoSegmentHighlights")
         .attr("transform", (d, i) => `translate(0,${i * (this._mainStep + this._mainStepPad) + this._mainMargin.top})`)
         .selectAll("rect")
         .data(areaDataset)
@@ -303,7 +308,15 @@ export class VideoSegmentSelector extends TatorElement {
           .attr("fill", d => d.color)
           .attr("x", d => this._mainX(d.startFrame))
           .attr("y", mainY(0))
-          .attr("width", d => this._mainX(d.endFrame - d.startFrame))
+          .attr("width", d => {
+            const newStart = Math.max(0,Math.round(this._mainX.invert(0)));
+            const newEnd = Math.min(this._maxFrame,Math.round(this._mainX.invert(this._mainWidth)));
+            var width = ((d.endFrame - d.startFrame) / (newEnd - newStart)) * this._mainWidth;
+            if (d.endFrame < newStart || d.startFrame > newEnd) {
+              width = 0;
+            }
+            return width;
+          })
           .attr("height", this._mainStep);
 
     this._mainFrameLine = this._mainSvg.append("line")
@@ -320,6 +333,78 @@ export class VideoSegmentSelector extends TatorElement {
       .attr("x", this._mainWidth * 0.4)
       .attr("y", 12)
       .attr("fill", "#fafafa");
+
+    this._zoom = d3.zoom()
+      .scaleExtent([1, 10])
+      .translateExtent([[0, 0], [this._mainWidth, this._mainHeight]])
+      .on("zoom", function (event) {
+        that._zoomTransform = event.transform;
+        that._mainX.range([0, that._mainWidth].map(d => event.transform.applyX(d)));
+        that._xAxisG.call(that._xAxis);
+
+        const newStart = Math.max(0,Math.round(that._mainX.invert(0)));
+        const newEnd = Math.min(that._maxFrame,Math.round(that._mainX.invert(that._mainWidth)));
+        that._mainSvg
+          .selectAll(".videoSegmentHighlights rect")
+          .attr("x", d => {
+            return that._mainX(d.startFrame);
+          })
+          .attr("width", d => {
+            var width = ((d.endFrame - d.startFrame) / (newEnd - newStart)) * that._mainWidth;
+            if (d.endFrame < newStart || d.startFrame > newEnd) {
+              width = 0;
+            }
+            return width;
+          });
+
+        console.log(`new x-axis: ${that._mainX.invert(0)} ${that._mainX.invert(that._mainWidth)}`);
+        that.dispatchEvent(new CustomEvent("newFrameRange", {
+          detail: {
+            start: newStart,
+            end: newEnd
+          }
+        }));
+      });
+
+    if (this._hoverFrame != null) {
+      this._mainFrameLine
+        .attr("opacity", "1.0")
+        .attr("x1", this._mainX(this._hoverFrame))
+        .attr("x2", this._mainX(this._hoverFrame))
+        .attr("y1", -this._mainStep - this._mainMargin.bottom - 3)
+        .attr("y2", this._mainHeight);
+
+        this._hoverFrameText.attr("opacity", "1.0");
+        this._hoverFrameTextBackground.attr("opacity", "1.0");
+
+        if (this._displayMode == "frame") {
+          this._hoverFrameText.text(this._hoverFrame);
+        }
+        else if (this._displayMode == "relativeTime") {
+          this._hoverFrameText.text(this._createTimeStr(this._hoverFrame));
+        }
+
+        if (this._mainX(this._hoverFrame) < this._mainWidth * 0.5) {
+          this._hoverFrameText
+            .attr("x", this._mainX(this._hoverFrame) + 15)
+            .attr("text-anchor", "start");
+        }
+        else {
+          this._hoverFrameText
+            .attr("x", this._mainX(this._hoverFrame) - 15)
+            .attr("text-anchor", "end");
+        }
+
+        var textBBox = this._hoverFrameText.node().getBBox();
+
+        this._hoverFrameTextBackground
+          .attr("opacity", "1.0")
+          .attr("x", textBBox.x - textBBox.width / 4)
+          .attr("y", textBBox.y)
+          .attr("width", textBBox.width + textBBox.width / 2)
+          .attr("height", textBBox.height)
+          .attr("fill", "#151b28");
+    }
 
     if (this._selectMode == "segmentStart" || this._selectMode == "segmentEnd") {
 
@@ -440,14 +525,42 @@ export class VideoSegmentSelector extends TatorElement {
   }
 
   /**
+   * Manual zoom controls
+   */
+  zoomIn() {
+    this._zoom.scaleBy(this._mainSvg.transition().duration(250), 2);
+  }
+  zoomOut() {
+    this._zoom.scaleBy(this._mainSvg.transition().duration(250), 0.5);
+  }
+  panLeft() {
+    this._zoom.translateBy(this._mainSvg.transition().duration(250), 50, 0);
+  }
+  panRight() {
+    this._zoom.translateBy(this._mainSvg.transition().duration(250), -50, 0);
+  }
+  resetZoom() {
+    this._zoom.scaleTo(this._mainSvg.transition().duration(250), 1);
+  }
+
+  /**
    * Force a redraw of the timeline
    */
   redraw() {
     this._updateSvgData();
   }
 
+  showFrameHover(frame) {
+    this._hoverFrame = frame;
+    this.redraw();
+  }
+
+  hideFrameHover() {
+    this._hoverFrame = null;
+    this.redraw();
+  }
+
   /**
-   *
    * @param {string} mode - "frame"|"relativeTime"
    */
    setDisplayMode(mode) {
@@ -496,6 +609,9 @@ export class VideoSegmentSelector extends TatorElement {
     this._newWindowStart = windowStartFrame;
     this._newWindowEnd = windowEndFrame;
     this._newWindowShiftSize = Math.floor((windowEndFrame - windowStartFrame)/2);
+    
+    this._hoverFrame = null;
+    this._zoomTransform = null;
 
     this._resetSelectMode();
     this.redraw();

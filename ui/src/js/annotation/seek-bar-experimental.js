@@ -10,6 +10,7 @@ export class SeekBarExperimental extends TatorElement {
     this.handle = document.createElement("div");
     this.handle.setAttribute("class", "range-handle");
     this.handle.setAttribute("tabindex", "0");
+    this.handle.id = "seek-bar-handle";
     this.handle.style.cursor = "pointer";
     this.bar.appendChild(this.handle);
     this._loadedPercentage = 0;
@@ -105,6 +106,36 @@ export class SeekBarExperimental extends TatorElement {
     this._min = 0;
     this._max = 100;
     this._value = 0;
+
+    this.bar.addEventListener("mouseover", (evt) => {
+
+      const handlePos = this.handle.getBoundingClientRect();
+      if (evt.clientX <= (handlePos.x + handlePos.width*1.25) &&
+          evt.clientX >= (handlePos.x - handlePos.width*0.25)) {
+        this.dispatchEvent(new Event("mouseHoverOff"));
+        return;
+      }
+
+      var frame = Math.round((evt.offsetX / this.bar.offsetWidth) *  (this._max - this._min)) + this._min;
+      this.dispatchEvent(new CustomEvent("mouseHover", {detail: {frame: frame}}));
+    });
+
+    this.bar.addEventListener("mousemove", (evt) => {
+
+      const handlePos = this.handle.getBoundingClientRect();
+      if (evt.clientX <= (handlePos.x + handlePos.width*1.25) &&
+          evt.clientX >= (handlePos.x - handlePos.width*0.25)) {
+        this.dispatchEvent(new Event("mouseHoverOff"));
+        return;
+      }
+
+      var frame = Math.round((evt.offsetX / this.bar.offsetWidth) *  (this._max - this._min)) + this._min;
+      this.dispatchEvent(new CustomEvent("mouseHover", {detail: {frame: frame}}));
+    });
+
+    this.bar.addEventListener("mouseout", (evt) => {
+      this.dispatchEvent(new Event("mouseHoverOff"));
+    });
   }
 
   setStyle(barClass, loadedClass) {
