@@ -20,28 +20,9 @@ export class VideoSegmentSelector extends TatorElement {
       .style("font", "14px sans-serif")
       .style("color", "#6d7a96");
 
-    this._div = document.createElement("div");
-    this._shadow.appendChild(this._div);
-
     window.addEventListener("resize", this._updateSvgData());
-    this._displayMode = "frame";
-    this._axisColor = "#6d7a96";
 
-    var outerDiv = document.createElement("div");
-    outerDiv.setAttribute("class", "analysis__filter_conditions d-flex");
-    this._div.appendChild(outerDiv)
-
-    var innerDiv = document.createElement("div");
-    innerDiv.setAttribute("class", "px-2 py-2 d-flex flex-justify-center col-12")
-    innerDiv.style.width = "100%";
-    outerDiv.appendChild(innerDiv);
-
-    this.endpointData = {start: {}, end: {}};
-    this._createEndpointUI(innerDiv, this.endpointData.start, "Start");
-    this._createEndpointUI(innerDiv, this.endpointData.end, "End");
-
-    this._createWindowShiftUI(innerDiv);
-    this._createLoadUI(innerDiv);
+    this.createPlayWindowControls(this._shadow);
 
     this.setDisplayMode("frame");
     this._selectMode = "none";
@@ -49,11 +30,11 @@ export class VideoSegmentSelector extends TatorElement {
 
   _createLoadUI(parentDiv) {
     var div = document.createElement("div");
-    div.setAttribute("class", "analysis__filter_field_border d-flex flex-items-center text-gray col-2 f2 mx-3");
+    div.setAttribute("class", "video-segment-field d-flex flex-items-center text-gray col-2 f2 mx-3");
     parentDiv.appendChild(div);
 
     var globalDiv = document.createElement("div");
-    globalDiv.setAttribute("class", "d-flex flex-items-center flex-grow text-gray f2 px-1 col-12");
+    globalDiv.setAttribute("class", "d-flex flex-items-center flex-grow text-gray f2 px-2 col-12");
     div.appendChild(globalDiv);
 
     var label = document.createElement("span");
@@ -81,15 +62,15 @@ export class VideoSegmentSelector extends TatorElement {
 
   _createWindowShiftUI(parentDiv) {
     var div = document.createElement("div");
-    div.setAttribute("class", "analysis__filter_field_border d-flex flex-items-center text-gray col-2 f2 mx-3");
+    div.setAttribute("class", "video-segment-field d-flex flex-items-center text-gray col-2 f2 mx-3");
     parentDiv.appendChild(div);
 
     var globalDiv = document.createElement("div");
-    globalDiv.setAttribute("class", "d-flex flex-items-center flex-grow text-gray f2 px-1 col-12");
+    globalDiv.setAttribute("class", "d-flex flex-items-center flex-grow text-gray f2 px-2 col-12");
     div.appendChild(globalDiv);
 
     var label = document.createElement("span");
-    label.setAttribute("class", "f2 px-2 col-12 d-flex text-white text-semibold");
+    //label.setAttribute("class", "f2 px-2 col-12 d-flex text-white text-semibold");
     label.textContent = "Shift";
     globalDiv.appendChild(label);
 
@@ -115,27 +96,27 @@ export class VideoSegmentSelector extends TatorElement {
   _createEndpointUI(parentDiv, endpointData, title) {
     var div = document.createElement("div");
     endpointData.parentDiv = div;
-    div.setAttribute("class", "analysis__filter_field_border d-flex flex-items-center text-gray col-3 f2 mx-3");
+    div.setAttribute("class", "video-segment-field d-flex flex-items-center text-gray col-3 f2 mx-3");
     parentDiv.appendChild(div);
 
     var label;
 
     var globalDiv = document.createElement("div");
-    globalDiv.setAttribute("class", "d-flex flex-items-center flex-grow text-gray f2 px-1 col-12");
+    globalDiv.setAttribute("class", "d-flex flex-items-center flex-grow text-gray f2 px-2 col-12");
     div.appendChild(globalDiv);
 
     label = document.createElement("span");
     label.setAttribute("class", "f2 px-2 col-4 d-flex text-white text-semibold");
     label.textContent = title;
-    globalDiv.appendChild(label);
+    //globalDiv.appendChild(label);
 
     endpointData.globalFrame = document.createElement("text-input");
-    endpointData.globalFrame.setAttribute("name", "Frame");
+    endpointData.globalFrame.setAttribute("name", title);
     endpointData.globalFrame.permission = "View Only";
     globalDiv.appendChild(endpointData.globalFrame);
 
     endpointData.globalTime = document.createElement("text-input");
-    endpointData.globalTime.setAttribute("name", "Time");
+    endpointData.globalTime.setAttribute("name", title);
     endpointData.globalTime.permission = "View Only";
     globalDiv.appendChild(endpointData.globalTime);
 
@@ -153,7 +134,7 @@ export class VideoSegmentSelector extends TatorElement {
             this._resetSelectMode();
             this._selectMode = "segmentStart";
             endpointData.redrawButtonActive = true;
-            div.style.borderColor = "#ffffff";
+            div.classList.add("active");
             this.redraw();
           }
           else {
@@ -168,7 +149,7 @@ export class VideoSegmentSelector extends TatorElement {
             this._resetSelectMode();
             this._selectMode = "segmentEnd";
             endpointData.redrawButtonActive = true;
-            div.style.borderColor = "#ffffff";
+            div.classList.add("active");
             this.redraw();
           }
           else {
@@ -493,9 +474,7 @@ export class VideoSegmentSelector extends TatorElement {
   _resetSelectMode() {
     this._selectMode = "none";
     this.endpointData.start.redrawButtonActive = false;
-    this.endpointData.start.parentDiv.style.borderColor = "#262e3d";
     this.endpointData.end.redrawButtonActive = false;
-    this.endpointData.end.parentDiv.style.borderColor = "#262e3d";
   }
 
   _displayNewWindow(newStartFrame) {
@@ -512,14 +491,15 @@ export class VideoSegmentSelector extends TatorElement {
       this._newWindowEnd = this._newWindowStart + this._windowDuration - 1;
     }
     this._showNewWindow = true;
-    this._loadDiv.style.display = "flex";
+    this._loadDiv.style.visibility = "visible";
 
+    //this._colorDiv.classList.add("new-window");
 
-    this.endpointData.start.globalFrame.setValue(this._newWindowStart);
-    this.endpointData.end.globalFrame.setValue(this._newWindowEnd);
+    this.endpointData.start.globalFrame.textContent = `Start: ${this._newWindowStart}`;
+    this.endpointData.end.globalFrame.textContent = `End: ${this._newWindowEnd}`;
 
-    this.endpointData.start.globalTime.setValue(this._createTimeStr(this._newWindowStart));
-    this.endpointData.end.globalTime.setValue(this._createTimeStr(this._newWindowEnd));
+    this.endpointData.start.globalTime.textContent = `Start: ${this._createTimeStr(this._newWindowStart)}`;
+    this.endpointData.end.globalTime.textContent = `End: ${this._createTimeStr(this._newWindowEnd)}`;
 
     this.redraw();
   }
@@ -560,6 +540,158 @@ export class VideoSegmentSelector extends TatorElement {
     this.redraw();
   }
 
+  createPlayWindowControls(parentDiv) {
+
+    this.endpointData = {start: {}, end: {}};
+
+    this._controlsDiv = document.createElement("div");
+    this._controlsDiv.setAttribute("class", "video-play-window-control d-flex flex-row flex-items-center flex-justify-between rounded-1");
+    this._controlsDiv.style.display = "none";
+    parentDiv.appendChild(this._controlsDiv);
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold px-1");
+    label.textContent = "Start 0";
+    this._controlsDiv.appendChild(label);
+    this.endpointData.start.globalFrame = label;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold px-1");
+    label.textContent = "Start 0";
+    this._controlsDiv.appendChild(label);
+    this.endpointData.start.globalTime = label;
+    label.style.hidden = true;
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+      "Set Start Of Play Window",
+      "play-window-set-start"
+    );
+    this._controlsDiv.appendChild(btn);
+    btn.addEventListener("click", () => {
+      if (!this.endpointData.start.redrawButtonActive) {
+        this._resetSelectMode();
+        this._selectMode = "segmentStart";
+        this.endpointData.start.redrawButtonActive = true;
+        this.redraw();
+      }
+      else {
+        this._resetSelectMode();
+        this.redraw();
+      }
+    });
+    this.endpointData.start.redrawButton = btn;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold px-1");
+    label.textContent = "End 0";
+    this._controlsDiv.appendChild(label);
+    this.endpointData.end.globalFrame = label;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold px-1");
+    label.textContent = "End 0";
+    this._controlsDiv.appendChild(label);
+    this.endpointData.end.globalTime = label;
+    label.style.hidden = true;
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
+      "Set End Of Play Window",
+      "play-window-set-end"
+    );
+    this._controlsDiv.appendChild(btn);
+    btn.addEventListener("click", () => {
+      if (!this.endpointData.end.redrawButtonActive) {
+        this._resetSelectMode();
+        this._selectMode = "segmentEnd";
+        this.endpointData.end.redrawButtonActive = true;
+        this.redraw();
+      }
+      else {
+        this._resetSelectMode();
+        this.redraw();
+      }
+    });
+    this.endpointData.end.redrawButton = btn;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold");
+    label.textContent = "Shift";
+    this._controlsDiv.appendChild(label);
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><polyline points="15 18 9 12 15 6"></polyline></svg>`,
+      "Shift Play Window Left",
+      "play-window-shift-left"
+    );
+    this._controlsDiv.appendChild(btn);
+    btn.addEventListener("click", () => {
+      this._displayNewWindow(this._newWindowStart - this._newWindowShiftSize);
+      btn.blur();
+    });
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
+      "Shift Play Window Right",
+      "play-window-shift-right"
+    );
+    this._controlsDiv.appendChild(btn);
+    btn.addEventListener("click", () => {
+      this._displayNewWindow(this._newWindowStart + this._newWindowShiftSize);
+      btn.blur();
+    });
+
+    var loadDiv = document.createElement("div");
+    loadDiv.setAttribute("class", "d-flex flex-items-center");
+    loadDiv.style.visibility = "hidden";
+    this._loadDiv = loadDiv;
+    this._controlsDiv.appendChild(loadDiv);
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold");
+    label.textContent = "Load";
+    this._loadDiv.appendChild(label);
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
+      "Load New Window",
+      "load-new-play-window"
+    );
+    this._loadDiv.appendChild(btn);
+    btn.addEventListener("click", () => {
+      console.log(`Play window: ${this._newWindowStart} ${this._newWindowEnd}`);
+      this.dispatchEvent(new CustomEvent("setPlayWindow", {
+        composed: true,
+        detail: {
+          newWindowStart: this._newWindowStart
+        }
+      }));
+    });
+
+  }
+
+  togglePlayWindowControls(top, left) {
+    if (this._controlsDiv.style.display == "flex") {
+      this._controlsDiv.style.display = "none";
+    }
+    else {
+      this._controlsDiv.style.top = `${top - 60}px`;
+      this._controlsDiv.style.left = `${left - 250}px`;
+      this._controlsDiv.style.display = "flex";
+    }
+  }
+
+  hidePlayWindowControls() {
+    this._controlsDiv.style.display = "none";
+  }
+
+
   /**
    * @param {string} mode - "frame"|"relativeTime"
    */
@@ -595,21 +727,21 @@ export class VideoSegmentSelector extends TatorElement {
     this._windowDuration = windowEndFrame - windowStartFrame + 1
     this._maxWindowEndFrame = this._lastGlobalFrame - this._windowDuration;
 
-    this.endpointData.start.globalFrame.setValue(windowStartFrame);
-    this.endpointData.end.globalFrame.setValue(windowEndFrame);
+    this.endpointData.start.globalFrame.textContent = `Start: ${windowStartFrame}`;
+    this.endpointData.end.globalFrame.textContent = `End: ${windowEndFrame}`;
 
-    this.endpointData.start.globalTime.setValue(this._createTimeStr(windowStartFrame));
-    this.endpointData.end.globalTime.setValue(this._createTimeStr(windowEndFrame));
+    this.endpointData.start.globalTime.textContent = `Start: ${this._createTimeStr(windowStartFrame)}`;
+    this.endpointData.end.globalTime.textContent = `End: ${this._createTimeStr(windowEndFrame)}`;
 
     this._minFrame = 0;
     this._maxFrame = lastGlobalFrame;
 
     this._showNewWindow = false;
-    this._loadDiv.style.display = "none";
+    this._loadDiv.style.visibility = "hidden";
     this._newWindowStart = windowStartFrame;
     this._newWindowEnd = windowEndFrame;
     this._newWindowShiftSize = Math.floor((windowEndFrame - windowStartFrame)/2);
-    
+
     this._hoverFrame = null;
     this._zoomTransform = null;
 
