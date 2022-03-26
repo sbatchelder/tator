@@ -514,3 +514,36 @@ annotation-player {
   background-color: rgba(0,0,0,0.9);
   padding: 2px;
 }
+
+.video-play-window-control {
+  box-sizing: border-box;
+  width: 500px;
+  overflow: initial;
+  position: absolute;
+  z-index: 10;
+  border: 2px solid black;
+  background-color: rgba(0,0,0,0.9);
+  padding: 2px;
+}
+
+.video-segment-field {
+  border: 2px solid $color-charcoal--medium-dark70;
+  margin: 3px;
+}
+
+.video-segment-field.active {
+  border: 2px solid $color-white;
+}
+
+.video-segment-block {
+  margin: 3px;
+  text-decoration: underline;
+  text-underline-position: under;
+  text-decoration-color: $color-gray--light;
+  text-decoration-thickness: 5px;
+  width: 120px;
+}
+
+.video-segment-block.new-window {
+  background-color: $color-white;
+}

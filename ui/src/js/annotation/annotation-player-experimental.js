@@ -166,7 +166,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "video-timeline-controls-btn"
     );
     btn._button.classList.remove("px-2");
-    btn.setAttribute("class", "mr-6");
     settingsDiv.appendChild(btn);
     this._videoTimelineControlsBtn = btn;
     btn.addEventListener("click", () => {
@@ -179,7 +178,28 @@ export class AnnotationPlayerExperimental extends TatorElement {
       }
       else {
         this._timelineControlsDiv.style.display = "flex";
+        this._videoSegmentSelector.hidePlayWindowControls();
       }
+    });
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>`,
+      "Video Timeline Controls",
+      "video-timeline-controls-btn"
+    );
+    btn._button.classList.remove("px-2");
+    btn.setAttribute("class", "mr-6");
+    settingsDiv.appendChild(btn);
+    this._videoPlayWindow = btn;
+    btn.addEventListener("click", () => {
+      btn.blur();
+      this._timelineControlsDiv.style.display = "none";
+      if (this._videoMode == "play") {
+        this._setToSummaryMode();
+      }
+      var pos = this._videoPlayWindow.getBoundingClientRect();
+      this._videoSegmentSelector.togglePlayWindowControls(pos.top, pos.left);
     });
 
     this._rateControl = document.createElement("rate-control");
@@ -541,41 +561,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     });
 
     this._scrubControl.addEventListener("summary", () => {
-      this._videoMode = "summary";
-
-      this._slider.setAttribute("min", 0);
-      this._slider.setAttribute("max", this._lastGlobalFrame);
-      this._slider.setStyle("blue-iris-range-div", "blue-iris-range-loaded");
-
-      this._videoTimeline.style.display = "none";
-      this._videoSegmentSelector.style.display = "block";
-
-      this._videoTimeline.init(
-        0,
-        this._lastGlobalFrame,
-        this._mediaInfo.fps);
-
-      this._setTimeControlStyle();
-      this._qualityControl.setAttribute("disabled", "");
-      this._rateControl.setAttribute("disabled", "");
-
-      this._video.toggleProgressBar(false);
-      this._playerDownloadDisabled = true;
-      this._play._button.setAttribute("disabled", "");
-      fastForward.setAttribute("disabled", "");
-      rewind.setAttribute("disabled", "");
-
-      this._videoSegmentSelector.init(
-        this._lastGlobalFrame,
-        this._playWindowInfo.globalStartFrame,
-        this._playWindowInfo.globalEndFrame,
-        this._mediaInfo.fps
-      );
-
-      this._videoTimeline.hidden = false;
-      this._videoSegmentSelector.hidden = false;
-
-      this._resizeWindow();
+      this._setToSummaryMode();
     });
 
     /**
@@ -817,6 +803,45 @@ export class AnnotationPlayerExperimental extends TatorElement {
     return frame <= this._playWindowInfo.globalEndFrame && frame >= this._playWindowInfo.globalStartFrame;
   }
 
+  _setToSummaryMode() {
+    this._videoMode = "summary";
+
+    this._slider.setAttribute("min", 0);
+    this._slider.setAttribute("max", this._lastGlobalFrame);
+    this._slider.setStyle("blue-iris-range-div", "blue-iris-range-loaded");
+
+    this._videoTimeline.style.display = "none";
+    this._videoSegmentSelector.style.display = "block";
+
+    this._videoTimeline.init(
+      0,
+      this._lastGlobalFrame,
+      this._mediaInfo.fps);
+
+    this._setTimeControlStyle();
+    this._scrubControl.setValue("Summary");
+    this._qualityControl.setAttribute("disabled", "");
+    this._rateControl.setAttribute("disabled", "");
+
+    this._video.toggleProgressBar(false);
+    this._playerDownloadDisabled = true;
+    this._play._button.setAttribute("disabled", "");
+    this._fastForward.setAttribute("disabled", "");
+    this._rewind.setAttribute("disabled", "");
+
+    this._videoSegmentSelector.init(
+      this._lastGlobalFrame,
+      this._playWindowInfo.globalStartFrame,
+      this._playWindowInfo.globalEndFrame,
+      this._mediaInfo.fps
+    );
+
+    this._videoTimeline.hidden = false;
+    this._videoSegmentSelector.hidden = false;
+
+    this._resizeWindow();
+  }
+
   _setToPlayMode() {
     this._videoMode = "play";
 
@@ -855,6 +880,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
   _resizeHandler() {
     this._timelineControlsDiv.style.display = "none";
+    this._videoSegmentSelector.hidePlayWindowControls();
   }
 
   _setTimeControlStyle() {
