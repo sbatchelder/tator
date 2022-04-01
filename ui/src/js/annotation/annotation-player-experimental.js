@@ -161,7 +161,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     var btn = document.createElement("small-svg-button");
     btn.init(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>`,
       "Video Timeline Controls",
       "video-timeline-controls-btn"
     );
@@ -184,7 +184,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     var btn = document.createElement("small-svg-button");
     btn.init(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8"></polygon></svg>`,
       "Video Timeline Controls",
       "video-timeline-controls-btn"
     );
@@ -233,6 +233,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._totalTime.textContent = "/ 0:00";
     playButtons.appendChild(this._totalTime);
 
+    this._timelineMore = document.createElement("entity-more");
+    this._timelineMore.style.display = "block";
+    this._timelineDiv.appendChild(this._timelineMore);
+
     var outerDiv = document.createElement("div");
     outerDiv.style.width = "100%";
     var seekDiv = document.createElement("div");
@@ -246,6 +250,13 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoSegmentSelector = document.createElement("video-segment-selector");
     this._videoSegmentSelector.hidden = true;
     innerDiv.appendChild(this._videoSegmentSelector);
+    outerDiv.appendChild(innerDiv);
+    this._timelineDiv.appendChild(outerDiv);
+
+    var innerDiv = document.createElement("div");
+    this._entityTimeline = document.createElement("entity-timeline");
+    this._entityTimeline.rangeInput = this._slider;
+    innerDiv.appendChild(this._entityTimeline);
     outerDiv.appendChild(innerDiv);
     this._timelineDiv.appendChild(outerDiv);
 
@@ -364,6 +375,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._video.addEventListener("canvasResized", () => {
       this._videoTimeline.redraw();
+      this._entityTimeline.redraw();
     });
 
     this._video.addEventListener("frameChange", evt => {
@@ -408,6 +420,13 @@ export class AnnotationPlayerExperimental extends TatorElement {
     /**
      * Play controls event listeners
      */
+
+    this._timelineMore.addEventListener("click", () => {
+      this._displayTimelineLabels = !this._displayTimelineLabels;
+      this._entityTimeline.showFocus(this._displayTimelineLabels);
+      this._videoHeightPadObject.height = this._headerFooterPad + this._controls.offsetHeight + this._timelineDiv.offsetHeight;
+      window.dispatchEvent(new Event("resize"));
+    });
 
     play.addEventListener("click", () => {
       if (this.is_paused()) {
@@ -525,9 +544,20 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._slider.setAttribute("max", evt.detail.end);
     });
 
-    this._videoTimeline.addEventListener("selectFrame", evt => {
+    this._entityTimeline.addEventListener("selectFrame", evt => {
       this._slider.value = evt.detail.frame;
       this.handleSliderChange(evt);
+    });
+
+    this._entityTimeline.addEventListener("graphData", evt => {
+      if (evt.detail.numericalData.length > 0 || evt.detail.stateData.length > 0) {
+        this._timelineMore.style.display = "block";
+      }
+      else {
+        this._timelineMore.style.display = "none";
+      }
+      this._videoHeightPadObject.height = this._headerFooterPad + this._controls.offsetHeight + this._timelineDiv.offsetHeight;
+      window.dispatchEvent(new Event("resize"));
     });
 
     this._slider.addEventListener("mouseHover", evt => {
@@ -756,7 +786,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
           composed: true
         }));
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error(err);
         this._video.displayErrorMessage(`Error occurred. Could not load media: ${val.id}`);
         this.dispatchEvent(new Event("videoInitError", {
           composed: true
@@ -786,6 +817,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
   set annotationData(val) {
     this._video.annotationData = val;
+    this._entityTimeline.annotationData = val;
   }
 
 
@@ -814,6 +846,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoSegmentSelector.style.display = "block";
 
     this._videoTimeline.init(
+      0,
+      this._lastGlobalFrame,
+      this._mediaInfo.fps);
+
+    this._entityTimeline.init(
       0,
       this._lastGlobalFrame,
       this._mediaInfo.fps);
@@ -849,6 +886,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoSegmentSelector.style.display = "none";
 
     this._videoTimeline.init(
+      this._playWindowInfo.globalStartFrame,
+      this._playWindowInfo.globalEndFrame,
+      this._mediaInfo.fps);
+
+    this._entityTimeline.init(
       this._playWindowInfo.globalStartFrame,
       this._playWindowInfo.globalEndFrame,
       this._mediaInfo.fps);
@@ -1490,10 +1532,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
   }
 
   // Go to the frame at the highest resolution
-  goToFrame(frame) {
+  goToFrame(globalFrame) {
     this._video.onPlay();
     this._setTimeControlStyle();
-    if(this._videoMode == "play" && !this._frameInPlayWindow(frame)) {
+    if(this._videoMode == "play" && !this._frameInPlayWindow(globalFrame)) {
       this._play._button.setAttribute("disabled","");
       // Use some spaces because the tooltip z-index is wrong
       this._play.setAttribute("tooltip", "    Not in play window");
@@ -1501,7 +1543,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._fastForward.setAttribute("disabled","");
     }
 
-    return this._video.gotoFrame(frame, true);
+    return this._video.gotoFrame(globalFrame, true);
   }
 
   selectNone() {
