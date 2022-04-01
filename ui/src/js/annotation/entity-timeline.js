@@ -264,6 +264,10 @@ export class EntityTimeline extends TatorElement {
       return;
     }
 
+    if (this._attrStyleRangeTypes == undefined) {
+      return;
+    }
+
     for (let typeId in this._data._dataTypes) {
 
       // Grab the dataType and if this is not a state type, then ignore it
