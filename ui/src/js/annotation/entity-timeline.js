@@ -2,12 +2,11 @@ import { TatorElement } from "../components/tator-element.js";
 import * as d3 from "d3";
 import { v1 as uuidv1 } from "uuid";
 
-export class TimelineExperimental extends TatorElement {
+export class EntityTimeline extends TatorElement {
   constructor() {
     super();
 
     this._mainTimelineDiv = document.createElement("div");
-    this._mainTimelineDiv.setAttribute("class", "py-2");
     this._mainTimelineDiv.id = "main-timeline";
     this._shadow.appendChild(this._mainTimelineDiv);
 
@@ -20,7 +19,7 @@ export class TimelineExperimental extends TatorElement {
       .append("svg")
       .attr("preserveAspectRatio", "xMidYMid meet")
       .style("font", "12px sans-serif")
-      .style("color", "#a2afcd");
+      .style("color", "#6d7a96");
 
     this._focusSvg = d3.select(this._shadow).select("#focus-timeline")
       .append("svg")
@@ -38,6 +37,8 @@ export class TimelineExperimental extends TatorElement {
     this._stateData = [];
     this._numericalData = [];
     window.addEventListener("resize", this._updateSvgData());
+
+    this._displayMode = "frame";
   }
 
   /**
@@ -71,14 +72,24 @@ export class TimelineExperimental extends TatorElement {
   }
 
   /**
-   * @returns {integer} Maximum frame to display on the timeline. If unknown, this will be null.
+   * Converts the provided frame number into a corresponding time string
+   * @param {Integer} frame
+   * @returns {String} hh:mm:ss.aa
    */
-  _getMaxFrame() {
-    if (typeof this._rangeInput === "undefined") {
-      return null;
-    }
-
-    return parseInt(this._rangeInput.getAttribute("max"));
+   _createTimeStr(frame) {
+    var hours;
+    var minutes;
+    var seconds;
+    var timeStr;
+    var totalSeconds = frame / this._fps;
+    hours = Math.floor(totalSeconds / 3600);
+    totalSeconds -= hours * 3600;
+    minutes = Math.floor(totalSeconds / 60) % 60;
+    totalSeconds -= minutes * 60;
+    seconds = totalSeconds % 60;
+    seconds = seconds.toFixed(0);
+    var timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return timeStr;
   }
 
   /**
@@ -235,8 +246,7 @@ export class TimelineExperimental extends TatorElement {
     // Recreate the state and numerical datasets
     this._numericalData = [];
     this._stateData = [];
-    var maxFrame = this._getMaxFrame();
-    if (isNaN(maxFrame)) {
+    if (isNaN(this._maxFrame)) {
       this.showMain(false);
       this.showFocus(false);
 
@@ -247,6 +257,10 @@ export class TimelineExperimental extends TatorElement {
           stateData: this._stateData
         }
       }));
+      return;
+    }
+
+    if (this._data == undefined) {
       return;
     }
 
@@ -292,10 +306,10 @@ export class TimelineExperimental extends TatorElement {
               // Add a point at the last frame to draw the state all the way to the end
               graphData.sort((a,b) => {return a.frame - b.frame});
               graphData.push({...graphData[graphData.length - 1]});
-              graphData[graphData.length - 1].frame = maxFrame;
+              graphData[graphData.length - 1].frame = this._maxFrame;
 
-              if (graphData[0].frame != 0) {
-                graphData.unshift({frame: 0, value: 0.0, actualValue: false});
+              if (graphData[0].frame != this._minFrame) {
+                graphData.unshift({frame: this._minFrame, value: 0.0, actualValue: false});
               }
 
               this._stateData.push({
@@ -336,7 +350,7 @@ export class TimelineExperimental extends TatorElement {
                 // #TODO Not sure if this is needed
                 graphData.sort((a,b) => {return a.frame - b.frame});
                 graphData.push({...graphData[graphData.length - 1]});
-                graphData[graphData.length - 1].frame = maxFrame;
+                graphData[graphData.length - 1].frame = this._maxFrame;
 
                 this._numericalData.push({
                   name: `${attrType.name} (Max: ${maxValue.toFixed(2)})`,
@@ -368,21 +382,21 @@ export class TimelineExperimental extends TatorElement {
           // Start frame check and end frame check attributes exist.
           // #TODO This capability may go away in lieu of just using -1 values.
           if (data.attributes[attrTypeInfo.startFrameCheckAttr] === false) {
-            startFrame = 0;
+            startFrame = this._minFrame;
           }
           if (data.attributes[attrTypeInfo.endFrameCheckAttr] === false) {
-            endFrame = maxFrame;
+            endFrame = this._maxFrame;
           }
         }
         else {
           // Start/end frame check attributes don't exist.
           // Just assume if there's a -1, it's going to stretch
           if (startFrame == -1) {
-            startFrame = 0;
+            startFrame = this._minFrame;
           }
 
           if (endFrame == -1) {
-            endFrame = maxFrame;
+            endFrame = this._maxFrame;
           }
         }
 
@@ -406,10 +420,10 @@ export class TimelineExperimental extends TatorElement {
         // Add a point at the last frame to draw the state all the way to the end
         graphData.sort((a,b) => {return a.frame - b.frame});
         graphData.push({...graphData[graphData.length - 1]});
-        graphData[graphData.length - 1].frame = maxFrame;
+        graphData[graphData.length - 1].frame = this._maxFrame;
 
-        if (graphData[0].frame != 0) {
-          graphData.unshift({frame: 0, value: 0.0, actualValue: "false"});
+        if (graphData[0].frame != this._minFrame) {
+          graphData.unshift({frame: this._minFrame, value: 0.0, actualValue: "false"});
         }
 
         this._stateData.push({
@@ -447,8 +461,7 @@ export class TimelineExperimental extends TatorElement {
   _updateSvgData() {
 
     var that = this;
-    var maxFrame = this._getMaxFrame();
-    if (isNaN(maxFrame)) {
+    if (isNaN(this._maxFrame)) {
       return;
     }
 
@@ -458,7 +471,7 @@ export class TimelineExperimental extends TatorElement {
     }
     this._mainStepPad = 2;
     this._mainStep = 5; // vertical height of each entry in the series / band
-    this._mainMargin = ({top: 20, right: 3, bottom: 3, left: 3});
+    this._mainMargin = ({top: 5, right: 3, bottom: 3, left: 3});
     this._mainHeight =
     this._mainLineHeight +
       this._stateData.length * (this._mainStep + this._mainStepPad) +
@@ -470,7 +483,7 @@ export class TimelineExperimental extends TatorElement {
 
     // Define the axes
     this._mainX = d3.scaleLinear()
-      .domain([0, maxFrame])
+      .domain([this._minFrame, this._maxFrame])
       .range([0, this._mainWidth])
 
     var mainY = d3.scaleLinear()
@@ -483,6 +496,7 @@ export class TimelineExperimental extends TatorElement {
     this._mainSvg.selectAll('*').remove();
 
     // Frame number x-axis ticks
+    /*
     if (this._numericalData.length == 0 && this._stateData.length == 0) {
       var xAxis = g => g
         .call(d3.axisBottom(this._mainX).ticks().tickFormat(d3.format("d")))
@@ -496,6 +510,7 @@ export class TimelineExperimental extends TatorElement {
       .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left || this._mainX(d) >= this._mainWidth - this._mainMargin.right).remove())
       .call(g => g.select(".domain").remove());
     }
+    */
 
     // States are represented as area graphs
     var area = d3.area()
@@ -650,23 +665,21 @@ export class TimelineExperimental extends TatorElement {
       that._unhighlightMainLines();
     })
 
-    // Add the x-axis
-    this._mainSvg.append("g")
-      .style("font-size", "12px")
-      .call(xAxis);
+    // Setup the brush to focus/zoom on the main timeline if the focus timeline is displayed
+    // and there is data
+    if (this._focusTimelineDiv.style.display != "none") {
+      this._mainBrush = d3.brushX()
+        .extent([[this._mainMargin.left, 0.5], [this._mainWidth - this._mainMargin.right, this._mainHeight - this._mainMargin.bottom + 0.5]])
+        .on("end", this._mainBrushEnded.bind(this))
+        .on("brush", this._mainBrushed.bind(this));
 
-    // Setup the brush to focus/zoom on the main timeline
-    this._mainBrush = d3.brushX()
-      .extent([[this._mainMargin.left, 0.5], [this._mainWidth - this._mainMargin.right, this._mainHeight - this._mainMargin.bottom + 0.5]])
-      .on("end", this._mainBrushEnded.bind(this))
-      .on("brush", this._mainBrushed.bind(this));
+      // The brush will default to nothing being selected
+      this._mainBrushG = this._mainSvg.append("g")
+        .call(this._mainBrush);
 
-    // The brush will default to nothing being selected
-    this._mainBrushG = this._mainSvg.append("g")
-      .call(this._mainBrush);
-
-    this._mainBrushG
-      .call(this._mainBrush.move, null);
+      this._mainBrushG
+        .call(this._mainBrush.move, null);
+    }
   }
 
   /**
@@ -920,11 +933,10 @@ export class TimelineExperimental extends TatorElement {
     var that = this;
     this._focusSvg.on("click", function(event, d) {
 
-      const selectedFrame = focusX.invert(d3.pointer(event)[0]);
-      const maxFrame = that._getMaxFrame();
+      const selectedFrame = Math.round(focusX.invert(d3.pointer(event)[0]));
 
-      if (selectedFrame >= 0 && selectedFrame <= maxFrame) {
-        that.dispatchEvent(new CustomEvent("select", {
+      if (selectedFrame >= that._minFrame && selectedFrame <= that._maxFrame) {
+        that.dispatchEvent(new CustomEvent("selectFrame", {
           detail: {
             frame: selectedFrame
           }
@@ -938,6 +950,10 @@ export class TimelineExperimental extends TatorElement {
     this._focusSvg.on("mouseout", function() {
         mouseLine.attr("opacity", "0");
         that._mainFrameLine.attr("opacity", "0");
+        if (displayXAxis) {
+          focusFrameTextBackground.attr("opacity", "0");
+          focusFrameText.attr("opacity", "0");
+        }
     });
     this._focusSvg.on("mousemove", function(event, d) {
 
@@ -1011,6 +1027,43 @@ export class TimelineExperimental extends TatorElement {
     }
   }
 
+
+  /**
+   * Call this to initialize the timeline.
+   * This will default the display mode to frames.
+   *
+   * @param {integer} minFrame
+   * @param {integer} maxFrame
+   * @param {float} fps
+   */
+   init(minFrame, maxFrame, fps) {
+
+    if (minFrame != this._minFrame && this._maxFrame != maxFrame){
+      // Reset the zoom if the play window has changed
+      this._zoomTransform = null;
+    }
+
+    this._minFrame = minFrame;
+    this._maxFrame = maxFrame;
+    this._fps = fps;
+    this._updateData();
+    this.redraw();
+  }
+
+  /**
+   * Sets the display mode of the timeline and forces a redraw
+   * @param {string} mode "frame"|"relativeTime"
+   */
+  setDisplayMode(mode) {
+    const validOptions = ["frame", "relativeTime"]
+    if (!validOptions.includes(mode)) {
+      throw `Invalid mode (${mode}) provided to setDisplayMode`;
+    }
+
+    this._displayMode = mode;
+    this._updateSvgData();
+  }
+
   /**
    *
    * @param {bool} display True if the main timeline should be displayed. False otherwise.
@@ -1054,4 +1107,4 @@ export class TimelineExperimental extends TatorElement {
 
 }
 
-customElements.define("timeline-experimental", TimelineExperimental);
+customElements.define("entity-timeline", EntityTimeline);
