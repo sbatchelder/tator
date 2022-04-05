@@ -11,7 +11,7 @@ import TatorLoading from "../../images/tator_loading.gif";
  *
  * - Uses version2:
  *   annotation-player-v2
- * 
+ *
  * #TODO
  * Add URL parameters
  * Add annotation data
@@ -84,6 +84,8 @@ export class AnnotationPageExperimental extends TatorPage {
     this._undo = document.createElement("undo-buffer");
 
     this._data = document.createElement("annotation-data");
+
+    this._timeKeeper = document.createElement("global-time-keeper");
 
     this._progressDialog.addEventListener("close", () => {
       this.removeAttribute("has-open-modal", "");
@@ -194,6 +196,7 @@ export class AnnotationPageExperimental extends TatorPage {
               player.mediaInfo = data;
               this._setupInitHandlers(player);
               this._getMetadataTypes(player, player._video._canvas);
+              this._setupTimeKeeper(data);
               this._videoSettingsDialog.mode("single", [data]);
               this._settings._capture.addEventListener(
                 'captureFrame',
@@ -324,6 +327,17 @@ export class AnnotationPageExperimental extends TatorPage {
         })
         break;
     }
+  }
+
+  /**
+   * Sets up the global time keeper using the provided media.
+   * @param {Tator.Media} parentMedia
+   */
+  _setupTimeKeeper(parentMedia) {
+    this._player.timeKeeper = this._timeKeeper;
+    var mediaListByChannel = [];
+    mediaListByChannel.push([parentMedia]);
+    this._timeKeeper.init(mediaListByChannel, parentMedia.fps);
   }
 
   _setupInitHandlers(canvas) {

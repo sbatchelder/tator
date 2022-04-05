@@ -1,8 +1,8 @@
-import { TatorElement } from "../components/tator-element.js";
 import * as d3 from "d3";
 import { v1 as uuidv1 } from "uuid";
+import { BaseTimeline } from "../annotation/base-timeline.js";
 
-export class EntityTimeline extends TatorElement {
+export class EntityTimeline extends BaseTimeline {
   constructor() {
     super();
 
@@ -37,8 +37,6 @@ export class EntityTimeline extends TatorElement {
     this._stateData = [];
     this._numericalData = [];
     window.addEventListener("resize", this._updateSvgData());
-
-    this._displayMode = "frame";
   }
 
   /**
@@ -49,47 +47,29 @@ export class EntityTimeline extends TatorElement {
   set annotationData(val) {
     this._data = val;
 
-    this._data.addEventListener("freshData", evt => {
+    this._data.addEventListener("freshData", () => {
       this._setupAttrStyleRangeTypes();
       this._updateData();
     });
 
-    this._data.addEventListener("initialized", evt => {
+    this._data.addEventListener("initialized", () => {
       this._setupAttrStyleRangeTypes();
       this._updateData();
     });
   }
 
   /**
-   * Sets the object that will eventually contain the frame range to display.
-   * This will be used to define the maximum frame.
-   *
-   * @param {Object} val - Object that needs to have a "max" attribute that will return a frame
-   *                       An example of this is the SeekBar TatorElement
+   * @param {GlobalTimeKeeper} val
    */
-  set rangeInput(val) {
-    this._rangeInput = val;
-  }
+  set timeKeeper(val) {
+    this._timeKeeper = val;
+    this._timeKeeperInitialized = false;
 
-  /**
-   * Converts the provided frame number into a corresponding time string
-   * @param {Integer} frame
-   * @returns {String} hh:mm:ss.aa
-   */
-   _createTimeStr(frame) {
-    var hours;
-    var minutes;
-    var seconds;
-    var timeStr;
-    var totalSeconds = frame / this._fps;
-    hours = Math.floor(totalSeconds / 3600);
-    totalSeconds -= hours * 3600;
-    minutes = Math.floor(totalSeconds / 60) % 60;
-    totalSeconds -= minutes * 60;
-    seconds = totalSeconds % 60;
-    seconds = seconds.toFixed(0);
-    var timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    return timeStr;
+    this._timeKeeper.addEventListener("initialized", () => {
+      this._timeKeeperInitialized = true;
+      this._setupAttrStyleRangeTypes();
+      this._updateData();
+    });
   }
 
   /**
@@ -101,6 +81,10 @@ export class EntityTimeline extends TatorElement {
   _setupAttrStyleRangeTypes() {
 
     if (this._attrStyleRangeTypes != undefined) {
+      return;
+    }
+
+    if (this._data == undefined) {
       return;
     }
 
@@ -268,6 +252,10 @@ export class EntityTimeline extends TatorElement {
       return;
     }
 
+    if (!this._timeKeeper) {
+      return;
+    }
+
     for (let typeId in this._data._dataTypes) {
 
       // Grab the dataType and if this is not a state type, then ignore it
@@ -301,7 +289,10 @@ export class EntityTimeline extends TatorElement {
               else {
                 graphValue = 1.0;
               }
-              graphData.push({frame: data.frame, value: graphValue, actualValue: value});
+              graphData.push({
+                frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], data.frame),
+                value: graphValue,
+                actualValue: value});
             }
 
             // If there's data then add it to the plot dataset
@@ -337,7 +328,10 @@ export class EntityTimeline extends TatorElement {
                   if (value > maxValue) {
                     maxValue = value;
                   }
-                  graphData.push({frame: data.frame, value: 0.0, actualValue: value});
+                  graphData.push({
+                    frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], data.frame),
+                    value: 0.0,
+                    actualValue: value});
                 }
               }
 
@@ -386,21 +380,20 @@ export class EntityTimeline extends TatorElement {
           // Start frame check and end frame check attributes exist.
           // #TODO This capability may go away in lieu of just using -1 values.
           if (data.attributes[attrTypeInfo.startFrameCheckAttr] === false) {
-            startFrame = this._minFrame;
+            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media[0]);
           }
           if (data.attributes[attrTypeInfo.endFrameCheckAttr] === false) {
-            endFrame = this._maxFrame;
+            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media[0]);
           }
         }
         else {
           // Start/end frame check attributes don't exist.
           // Just assume if there's a -1, it's going to stretch
           if (startFrame == -1) {
-            startFrame = this._minFrame;
+            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media[0]);
           }
-
           if (endFrame == -1) {
-            endFrame = this._maxFrame;
+            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media[0]);
           }
         }
 
@@ -422,6 +415,7 @@ export class EntityTimeline extends TatorElement {
       if (graphData.length > 0) {
 
         // Add a point at the last frame to draw the state all the way to the end
+        // (on both ends if required)
         graphData.sort((a,b) => {return a.frame - b.frame});
         graphData.push({...graphData[graphData.length - 1]});
         graphData[graphData.length - 1].frame = this._maxFrame;
@@ -1052,20 +1046,6 @@ export class EntityTimeline extends TatorElement {
     this._fps = fps;
     this._updateData();
     this.redraw();
-  }
-
-  /**
-   * Sets the display mode of the timeline and forces a redraw
-   * @param {string} mode "frame"|"relativeTime"
-   */
-  setDisplayMode(mode) {
-    const validOptions = ["frame", "relativeTime"]
-    if (!validOptions.includes(mode)) {
-      throw `Invalid mode (${mode}) provided to setDisplayMode`;
-    }
-
-    this._displayMode = mode;
-    this._updateSvgData();
   }
 
   /**
