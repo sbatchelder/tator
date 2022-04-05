@@ -189,7 +189,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "video-timeline-controls-btn"
     );
     btn._button.classList.remove("px-2");
-    btn.setAttribute("class", "mr-6");
+    //btn.setAttribute("class", "mr-6");
     settingsDiv.appendChild(btn);
     this._videoPlayWindow = btn;
     btn.addEventListener("click", () => {
@@ -201,6 +201,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
       var pos = this._videoPlayWindow.getBoundingClientRect();
       this._videoSegmentSelector.togglePlayWindowControls(pos.top, pos.left);
     });
+
+    this._timelineMore = document.createElement("entity-more");
+    this._timelineMore.style.display = "block";
+    settingsDiv.appendChild(this._timelineMore);
 
     this._rateControl = document.createElement("rate-control");
     settingsDiv.appendChild(this._rateControl);
@@ -233,9 +237,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._totalTime.textContent = "/ 0:00";
     playButtons.appendChild(this._totalTime);
 
-    this._timelineMore = document.createElement("entity-more");
-    this._timelineMore.style.display = "block";
-    this._timelineDiv.appendChild(this._timelineMore);
+    //this._timelineMore = document.createElement("entity-more");
+    //this._timelineMore.style.display = "block";
+    //this._timelineDiv.appendChild(this._timelineMore);
 
     var outerDiv = document.createElement("div");
     outerDiv.style.width = "100%";
@@ -255,7 +259,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     var innerDiv = document.createElement("div");
     this._entityTimeline = document.createElement("entity-timeline");
-    this._entityTimeline.rangeInput = this._slider;
     innerDiv.appendChild(this._entityTimeline);
     outerDiv.appendChild(innerDiv);
     this._timelineDiv.appendChild(outerDiv);
@@ -727,6 +730,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
     }
   }
 
+  set timeKeeper(val) {
+    this._timeKeeper = val;
+    this._entityTimeline.timeKeeper = val;
+  }
+
   set quality(val) {
     this._qualityControl.quality = val;
   }
@@ -820,6 +828,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._entityTimeline.annotationData = val;
   }
 
+  set timeKeeper(val) {
+    this._entityTimeline.timeKeeper = val;
+  }
 
   _currentGlobalFrame() {
     // #TODO Update once we actually have true windowing

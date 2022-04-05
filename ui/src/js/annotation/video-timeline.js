@@ -1,5 +1,6 @@
-import { TatorElement } from "../components/tator-element.js";
+import { BaseTimeline } from "../annotation/base-timeline.js";
 import * as d3 from "d3";
+
 /**
  * Web component that displays the video timeline axis in the annotator.
  *
@@ -8,7 +9,7 @@ import * as d3 from "d3";
  *    Sent when user selects a particular frame to seek to
  *    evt.detail.frame {integer}
  */
-export class VideoTimeline extends TatorElement {
+export class VideoTimeline extends BaseTimeline {
   constructor() {
     super();
 
@@ -23,29 +24,7 @@ export class VideoTimeline extends TatorElement {
       .style("color", "#6d7a96");
 
     window.addEventListener("resize", this._updateSvgData());
-    this._displayMode = "frame";
     this._axisColor = "#6d7a96";
-  }
-
-  /**
-   * Converts the provided frame number into a corresponding time string
-   * @param {Integer} frame
-   * @returns {String} hh:mm:ss.aa
-   */
-   _createTimeStr(frame) {
-    var hours;
-    var minutes;
-    var seconds;
-    var timeStr;
-    var totalSeconds = frame / this._fps;
-    hours = Math.floor(totalSeconds / 3600);
-    totalSeconds -= hours * 3600;
-    minutes = Math.floor(totalSeconds / 60) % 60;
-    totalSeconds -= minutes * 60;
-    seconds = totalSeconds % 60;
-    seconds = seconds.toFixed(0);
-    var timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    return timeStr;
   }
 
   /**
@@ -194,13 +173,6 @@ export class VideoTimeline extends TatorElement {
   }
 
   /**
-   * Force a redraw of the timeline
-   */
-  redraw() {
-    this._updateSvgData();
-  }
-
-  /**
    * Call this to initialize the timeline.
    * This will default the display mode to frames.
    *
@@ -220,20 +192,6 @@ export class VideoTimeline extends TatorElement {
     this._fps = fps;
     this._hoverFrame = null;
     this.redraw();
-  }
-
-  /**
-   * Sets the display mode of the timeline and forces a redraw
-   * @param {string} mode "frame"|"relativeTime"
-   */
-  setDisplayMode(mode) {
-    const validOptions = ["frame", "relativeTime"]
-    if (!validOptions.includes(mode)) {
-      throw `Invalid mode (${mode}) provided to setDisplayMode`;
-    }
-
-    this._displayMode = mode;
-    this._updateSvgData();
   }
 
   updateTimelineColor(axisColor) {
