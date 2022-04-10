@@ -1,10 +1,10 @@
-import { TatorElement } from "../components/tator-element.js";
+import { BaseTimeline } from "../annotation/base-timeline.js";
 import * as d3 from "d3";
 
 /**
  * Web component that displays the video play segment/window selection.
  */
-export class VideoSegmentSelector extends TatorElement {
+export class VideoSegmentSelector extends BaseTimeline {
 
   constructor() {
     super();
@@ -24,8 +24,10 @@ export class VideoSegmentSelector extends TatorElement {
 
     this.createPlayWindowControls(this._shadow);
 
-    this.setDisplayMode("frame");
     this._selectMode = "none";
+
+    this._windowStartFrame = 0;
+    this._windowEndFrame = 1;
   }
 
   _createLoadUI(parentDiv) {
@@ -166,27 +168,6 @@ export class VideoSegmentSelector extends TatorElement {
   }
 
   /**
-   * Converts the provided frame number into a corresponding time string
-   * @param {Integer} frame
-   * @returns {String} hh:mm:ss.aa
-   */
-   _createTimeStr(frame) {
-    var hours;
-    var minutes;
-    var seconds;
-    var timeStr;
-    var totalSeconds = frame / this._fps;
-    hours = Math.floor(totalSeconds / 3600);
-    totalSeconds -= hours * 3600;
-    minutes = Math.floor(totalSeconds / 60) % 60;
-    totalSeconds -= minutes * 60;
-    seconds = totalSeconds % 60;
-    seconds = seconds.toFixed(0);
-    var timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    return timeStr;
-  }
-
-  /**
    * Called whenever there's new data to be displayed on the timeline
    */
   _updateSvgData() {
@@ -220,6 +201,19 @@ export class VideoSegmentSelector extends TatorElement {
       });
     }
 
+    var numChannels = this._timeKeeper.getChannelCount();
+    for (let channelIndex = 0; channelIndex < numChannels; channelIndex++) {
+      var gaps = this._timeKeeper.getChannelGaps(channelIndex);
+      for (const gap of gaps) {
+        areaDataset.push({
+          color: "#ff6969",
+          startFrame: gap.globalStartFrame,
+          endFrame: gap.globalEndFrame
+        });
+        console.log(`gap: ${gap.globalStartFrame} ${gap.globalEndFrame}`)
+      }
+    }
+
     this._mainStepPad = 2;
     this._mainStep = 6; // vertical height of each entry in the series / band
     this._mainMargin = ({top: 5, right: 20, bottom: 20, left: 20});
@@ -249,18 +243,27 @@ export class VideoSegmentSelector extends TatorElement {
     //       using the traditional d3 enter/update/exit paradigm.
     this._mainSvg.selectAll('*').remove();
 
-    if (this._displayMode == "frame") {
+    if (this.inFrameDisplayMode()) {
       var xAxis = g => g
         .attr("transform", `translate(0,${this._mainMargin.top + this._mainStep})`)
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d3.format("d")))
         .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
     }
-    else if (this._displayMode == "relativeTime") {
+    else if (this.inRelativeTimeDisplayMode()) {
       var xAxis = g => g
         .attr("transform", `translate(0,${this._mainMargin.top + this._mainStep})`)
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d => {
-          return this._createTimeStr(d);
+          return this._createRelativeTimeString(d);
+        }))
+        .call(g => g.select(".domain").remove())
+        .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
+    }
+    else if (this.inUTCDisplayMode()) {
+      var xAxis = g => g
+        .attr("transform", `translate(0,${this._mainMargin.top + this._mainStep})`)
+        .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d => {
+          return this._createUTCString(d ,"time");
         }))
         .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
@@ -316,7 +319,7 @@ export class VideoSegmentSelector extends TatorElement {
       .attr("fill", "#fafafa");
 
     this._zoom = d3.zoom()
-      .scaleExtent([1, 10])
+      .scaleExtent([1, 20])
       .translateExtent([[0, 0], [this._mainWidth, this._mainHeight]])
       .on("zoom", function (event) {
         that._zoomTransform = event.transform;
@@ -358,11 +361,14 @@ export class VideoSegmentSelector extends TatorElement {
         this._hoverFrameText.attr("opacity", "1.0");
         this._hoverFrameTextBackground.attr("opacity", "1.0");
 
-        if (this._displayMode == "frame") {
+        if (this.inFrameDisplayMode()) {
           this._hoverFrameText.text(this._hoverFrame);
         }
-        else if (this._displayMode == "relativeTime") {
-          this._hoverFrameText.text(this._createTimeStr(this._hoverFrame));
+        else if (this.inRelativeTimeDisplayMode()) {
+          this._hoverFrameText.text(this._createRelativeTimeString(this._hoverFrame));
+        }
+        else if (this.inUTCDisplayMode()) {
+          this._hoverFrameText.text(this._createUTCString(this._hoverFrame));
         }
 
         if (this._mainX(this._hoverFrame) < this._mainWidth * 0.5) {
@@ -433,11 +439,14 @@ export class VideoSegmentSelector extends TatorElement {
           .attr("y1", -that._mainStep - that._mainMargin.bottom)
           .attr("y2", that._mainHeight);
 
-        if (that._displayMode == "frame") {
+        if (that.inFrameDisplayMode()) {
           that._hoverFrameText.text(currentFrame);
         }
-        else if (that._displayMode == "relativeTime") {
-          that._hoverFrameText.text(that._createTimeStr(currentFrame));
+        else if (that.inRelativeTimeDisplayMode()) {
+          that._hoverFrameText.text(that._createRelativeTimeString(currentFrame));
+        }
+        else if (that.inUTCDisplayMode()) {
+          that._hoverFrameText.text(that._createUTCString(currentFrame));
         }
 
         if (d3.pointer(event)[0] < that._mainWidth * 0.5) {
@@ -478,6 +487,11 @@ export class VideoSegmentSelector extends TatorElement {
   }
 
   _displayNewWindow(newStartFrame) {
+
+    if (!this._timeKeeperInitialized) {
+      return;
+    }
+
     if (newStartFrame < 0) {
       this._newWindowStart = 0;
       this._newWindowEnd = this._windowDuration - 1;
@@ -498,8 +512,11 @@ export class VideoSegmentSelector extends TatorElement {
     this.endpointData.start.globalFrame.textContent = `Start: ${this._newWindowStart}`;
     this.endpointData.end.globalFrame.textContent = `End: ${this._newWindowEnd}`;
 
-    this.endpointData.start.globalTime.textContent = `Start: ${this._createTimeStr(this._newWindowStart)}`;
-    this.endpointData.end.globalTime.textContent = `End: ${this._createTimeStr(this._newWindowEnd)}`;
+    this.endpointData.start.globalTime.textContent = `Start: ${this._createRelativeTimeString(this._newWindowStart)}`;
+    this.endpointData.end.globalTime.textContent = `End: ${this._createRelativeTimeString(this._newWindowEnd)}`;
+
+    this.endpointData.start.globalTime.textContent = `Start: ${this._createUTCString(this._newWindowStart)}`;
+    this.endpointData.end.globalTime.textContent = `End: ${this._createUTCString(this._newWindowEnd)}`;
 
     this.redraw();
   }
@@ -545,22 +562,18 @@ export class VideoSegmentSelector extends TatorElement {
     this.endpointData = {start: {}, end: {}};
 
     this._controlsDiv = document.createElement("div");
-    this._controlsDiv.setAttribute("class", "video-play-window-control d-flex flex-row flex-items-center flex-justify-between rounded-1");
+    this._controlsDiv.setAttribute("class", "annotation-canvas-overlay-menu d-flex flex-column rounded-1");
     this._controlsDiv.style.display = "none";
     parentDiv.appendChild(this._controlsDiv);
 
-    var label = document.createElement("span");
-    label.setAttribute("class", "text-gray f3 text-semibold px-1");
-    label.textContent = "Start 0";
-    this._controlsDiv.appendChild(label);
-    this.endpointData.start.globalFrame = label;
+    var title = document.createElement("div");
+    title.setAttribute("class", "annotation-canvas-overlay-menu-back f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    title.textContent = "Adjust Play Window";
+    this._controlsDiv.appendChild(title);
 
-    var label = document.createElement("span");
-    label.setAttribute("class", "text-gray f3 text-semibold px-1");
-    label.textContent = "Start 0";
-    this._controlsDiv.appendChild(label);
-    this.endpointData.start.globalTime = label;
-    label.style.hidden = true;
+    var wrapperDiv = document.createElement("div");
+    wrapperDiv.setAttribute("class", "px-2 py-1 d-flex flex-grow flex-items-center");
+    this._controlsDiv.appendChild(wrapperDiv);
 
     var btn = document.createElement("small-svg-button");
     btn.init(
@@ -568,7 +581,7 @@ export class VideoSegmentSelector extends TatorElement {
       "Set Start Of Play Window",
       "play-window-set-start"
     );
-    this._controlsDiv.appendChild(btn);
+    wrapperDiv.appendChild(btn);
     btn.addEventListener("click", () => {
       if (!this.endpointData.start.redrawButtonActive) {
         this._resetSelectMode();
@@ -584,17 +597,28 @@ export class VideoSegmentSelector extends TatorElement {
     this.endpointData.start.redrawButton = btn;
 
     var label = document.createElement("span");
-    label.setAttribute("class", "text-gray f3 text-semibold px-1");
-    label.textContent = "End 0";
-    this._controlsDiv.appendChild(label);
-    this.endpointData.end.globalFrame = label;
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
+    label.textContent = "Start 0";
+    wrapperDiv.appendChild(label);
+    this.endpointData.start.globalFrame = label;
 
     var label = document.createElement("span");
-    label.setAttribute("class", "text-gray f3 text-semibold px-1");
-    label.textContent = "End 0";
-    this._controlsDiv.appendChild(label);
-    this.endpointData.end.globalTime = label;
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
+    label.textContent = "Start 0";
+    wrapperDiv.appendChild(label);
+    this.endpointData.start.globalTime = label;
     label.style.hidden = true;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
+    label.textContent = "Start 0";
+    wrapperDiv.appendChild(label);
+    this.endpointData.start.utc = label;
+    label.style.hidden = true;
+
+    var wrapperDiv = document.createElement("div");
+    wrapperDiv.setAttribute("class", "px-2 py-1 d-flex flex-grow flex-items-center");
+    this._controlsDiv.appendChild(wrapperDiv);
 
     var btn = document.createElement("small-svg-button");
     btn.init(
@@ -602,7 +626,7 @@ export class VideoSegmentSelector extends TatorElement {
       "Set End Of Play Window",
       "play-window-set-end"
     );
-    this._controlsDiv.appendChild(btn);
+    wrapperDiv.appendChild(btn);
     btn.addEventListener("click", () => {
       if (!this.endpointData.end.redrawButtonActive) {
         this._resetSelectMode();
@@ -618,9 +642,33 @@ export class VideoSegmentSelector extends TatorElement {
     this.endpointData.end.redrawButton = btn;
 
     var label = document.createElement("span");
-    label.setAttribute("class", "text-gray f3 text-semibold");
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
+    label.textContent = "End 0";
+    wrapperDiv.appendChild(label);
+    this.endpointData.end.globalFrame = label;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
+    label.textContent = "End 0";
+    wrapperDiv.appendChild(label);
+    this.endpointData.end.globalTime = label;
+    label.style.hidden = true;
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
+    label.textContent = "End 0";
+    wrapperDiv.appendChild(label);
+    this.endpointData.end.utc = label;
+    label.style.hidden = true;
+
+    var wrapperDiv = document.createElement("div");
+    wrapperDiv.setAttribute("class", "px-2 py-1 d-flex flex-grow flex-items-center flex-justify-center");
+    this._controlsDiv.appendChild(wrapperDiv);
+
+    var label = document.createElement("span");
+    label.setAttribute("class", "text-gray f3 text-semibold text-uppercase px-1");
     label.textContent = "Shift";
-    this._controlsDiv.appendChild(label);
+    wrapperDiv.appendChild(label);
 
     var btn = document.createElement("small-svg-button");
     btn.init(
@@ -628,7 +676,7 @@ export class VideoSegmentSelector extends TatorElement {
       "Shift Play Window Left",
       "play-window-shift-left"
     );
-    this._controlsDiv.appendChild(btn);
+    wrapperDiv.appendChild(btn);
     btn.addEventListener("click", () => {
       this._displayNewWindow(this._newWindowStart - this._newWindowShiftSize);
       btn.blur();
@@ -640,31 +688,33 @@ export class VideoSegmentSelector extends TatorElement {
       "Shift Play Window Right",
       "play-window-shift-right"
     );
-    this._controlsDiv.appendChild(btn);
+    wrapperDiv.appendChild(btn);
     btn.addEventListener("click", () => {
       this._displayNewWindow(this._newWindowStart + this._newWindowShiftSize);
       btn.blur();
     });
 
+    var wrapperDiv = document.createElement("div");
+    wrapperDiv.setAttribute("class", "d-flex flex-grow flex-items-center flex-justify-center");
+    this._controlsDiv.appendChild(wrapperDiv);
+
     var loadDiv = document.createElement("div");
-    loadDiv.setAttribute("class", "d-flex flex-items-center");
+    loadDiv.setAttribute("class", "annotation-canvas-overlay-menu-option d-flex flex-items-center flex-justify-center px-2 py-1 flex-grow");
     loadDiv.style.visibility = "hidden";
     this._loadDiv = loadDiv;
-    this._controlsDiv.appendChild(loadDiv);
+    wrapperDiv.appendChild(loadDiv);
 
     var label = document.createElement("span");
-    label.setAttribute("class", "text-gray f3 text-semibold");
-    label.textContent = "Load";
+    label.setAttribute("class", "text-white f3 text-semibold text-uppercase");
+    label.textContent = "Load Play Window";
     this._loadDiv.appendChild(label);
 
-    var btn = document.createElement("small-svg-button");
-    btn.init(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
-      "Load New Window",
-      "load-new-play-window"
-    );
-    this._loadDiv.appendChild(btn);
-    btn.addEventListener("click", () => {
+    var svgIcon = document.createElement("span");
+    svgIcon.setAttribute("class", "d-flex px-2");
+    svgIcon.innerHTML =  `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+    this._loadDiv.appendChild(svgIcon);
+
+    wrapperDiv.addEventListener("click", () => {
       console.log(`Play window: ${this._newWindowStart} ${this._newWindowEnd}`);
       this.dispatchEvent(new CustomEvent("setPlayWindow", {
         composed: true,
@@ -673,74 +723,88 @@ export class VideoSegmentSelector extends TatorElement {
         }
       }));
     });
-
   }
 
-  togglePlayWindowControls(top, left) {
-    if (this._controlsDiv.style.display == "flex") {
-      this._controlsDiv.style.display = "none";
-    }
-    else {
-      this._controlsDiv.style.top = `${top - 60}px`;
-      this._controlsDiv.style.left = `${left - 250}px`;
-      this._controlsDiv.style.display = "flex";
-    }
+  displayPlayWindowControls(top, left) {
+    this._controlsDiv.style.top = `${top - 200}px`;
+    this._controlsDiv.style.left = `${left - 80}px`;
+    this._controlsDiv.style.display = "flex";
+  }
+
+  playWindowControlsVisible() {
+    return this._controlsDiv.style.display != "none";
   }
 
   hidePlayWindowControls() {
     this._controlsDiv.style.display = "none";
   }
 
-
   /**
-   * @param {string} mode - "frame"|"relativeTime"
+   * Force a redraw of the timeline and update the controls
    */
-   setDisplayMode(mode) {
-    if (mode == "frame") {
+   redraw() {
+
+    if (!this._timeKeeperInitialized) {
+      return;
+    }
+
+    this.endpointData.start.globalFrame.textContent = `Start: ${this._windowStartFrame}`;
+    this.endpointData.end.globalFrame.textContent = `End: ${this._windowEndFrame}`;
+
+    this.endpointData.start.globalTime.textContent = `Start: ${this._createRelativeTimeString(this._windowStartFrame)}`;
+    this.endpointData.end.globalTime.textContent = `End: ${this._createRelativeTimeString(this._windowEndFrame)}`;
+
+    this.endpointData.start.utc.textContent = `Start: ${this._createUTCString(this._windowStartFrame)}`;
+    this.endpointData.end.utc.textContent = `End: ${this._createUTCString(this._windowEndFrame)}`;
+
+    if (this.inFrameDisplayMode()) {
       this.endpointData.start.globalFrame.hidden = false;
       this.endpointData.start.globalTime.hidden = true;
+      this.endpointData.start.utc.hidden = true;
       this.endpointData.end.globalFrame.hidden = false;
       this.endpointData.end.globalTime.hidden = true;
+      this.endpointData.end.utc.hidden = true;
     }
-    else if (mode == "relativeTime") {
+    else if (this.inRelativeTimeDisplayMode()) {
       this.endpointData.start.globalFrame.hidden = true;
       this.endpointData.start.globalTime.hidden = false;
+      this.endpointData.start.utc.hidden = true;
       this.endpointData.end.globalFrame.hidden = true;
       this.endpointData.end.globalTime.hidden = false;
+      this.endpointData.end.utc.hidden = true;
     }
+    else if (this.inUTCDisplayMode()) {
+      this.endpointData.start.globalFrame.hidden = true;
+      this.endpointData.start.globalTime.hidden = true;
+      this.endpointData.start.utc.hidden = false;
+      this.endpointData.end.globalFrame.hidden = true;
+      this.endpointData.end.globalTime.hidden = true;
+      this.endpointData.end.utc.hidden = false;
+    }
+    this._updateSvgData();
+  }
 
-    this._displayMode = mode;
-    this.redraw();
+  timeKeeperInitialized() {
+    this._timeKeeperInitialized = true;
+    this._minFrame = 0;
+    this._maxFrame = this._timeKeeper.getLastGlobalFrame();
   }
 
   /**
-   * @param {integer} lastGlobalFrame
-   * @param {integer} windowStartFrame
-   * @param {integer} windowEndFrame
-   * @param {float} fps
+   * @param {integer} minFrame
+   * @param {integer} maxFrame
    */
-  init(lastGlobalFrame, windowStartFrame, windowEndFrame, fps) {
-    this._fps = fps;
-    this._lastGlobalFrame = lastGlobalFrame;
-    this._windowStartFrame = windowStartFrame;
-    this._windowEndFrame = windowEndFrame;
-    this._windowDuration = windowEndFrame - windowStartFrame + 1
-    this._maxWindowEndFrame = this._lastGlobalFrame - this._windowDuration;
-
-    this.endpointData.start.globalFrame.textContent = `Start: ${windowStartFrame}`;
-    this.endpointData.end.globalFrame.textContent = `End: ${windowEndFrame}`;
-
-    this.endpointData.start.globalTime.textContent = `Start: ${this._createTimeStr(windowStartFrame)}`;
-    this.endpointData.end.globalTime.textContent = `End: ${this._createTimeStr(windowEndFrame)}`;
-
-    this._minFrame = 0;
-    this._maxFrame = lastGlobalFrame;
+  init(minFrame, maxFrame) {
+    this._windowStartFrame = minFrame;
+    this._windowEndFrame = maxFrame;
+    this._windowDuration = maxFrame - minFrame + 1
+    this._maxWindowEndFrame = this._timeKeeper.getLastGlobalFrame() - this._windowDuration;
 
     this._showNewWindow = false;
     this._loadDiv.style.visibility = "hidden";
-    this._newWindowStart = windowStartFrame;
-    this._newWindowEnd = windowEndFrame;
-    this._newWindowShiftSize = Math.floor((windowEndFrame - windowStartFrame)/2);
+    this._newWindowStart = this._windowStartFrame;
+    this._newWindowEnd = this._windowEndFrame;
+    this._newWindowShiftSize = Math.floor((this._windowEndFrame - this._windowStartFrame)/2);
 
     this._hoverFrame = null;
     this._zoomTransform = null;

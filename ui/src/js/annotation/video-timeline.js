@@ -70,18 +70,27 @@ export class VideoTimeline extends BaseTimeline {
     //       using the traditional d3 enter/update/exit paradigm.
     this._mainSvg.selectAll('*').remove();
 
-    if (this._displayMode == "frame") {
+    if (this.inFrameDisplayMode()) {
       var xAxis = g => g
         .attr("transform", `translate(0,${this._mainMargin.top})`)
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d3.format("d")))
         .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
     }
-    else if (this._displayMode == "relativeTime") {
+    else if (this.inRelativeTimeDisplayMode()) {
       var xAxis = g => g
         .attr("transform", `translate(0,${this._mainMargin.top})`)
         .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d => {
-          return that._createTimeStr(d);
+          return that._createRelativeTimeString(d);
+        }))
+        .call(g => g.select(".domain").remove())
+        .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
+    }
+    else if (this.inUTCDisplayMode()) {
+      var xAxis = g => g
+        .attr("transform", `translate(0,${this._mainMargin.top})`)
+        .call(d3.axisBottom(this._mainX).ticks().tickSizeOuter(0).tickFormat(d => {
+          return that._createUTCString(d, "time");
         }))
         .call(g => g.select(".domain").remove())
         .call(g => g.selectAll(".tick").filter(d => this._mainX(d) < this._mainMargin.left * 2 || this._mainX(d) >= this._mainWidth - this._mainMargin.right * 2).remove());
@@ -113,13 +122,12 @@ export class VideoTimeline extends BaseTimeline {
       .attr("fill", "#fafafa");
 
     this._zoom = d3.zoom()
-      .scaleExtent([1, 10])
+      .scaleExtent([1, 20])
       .translateExtent([[0, 0], [this._mainWidth, this._mainHeight]])
       .on("zoom", function (event) {
         that._zoomTransform = event.transform;
         that._mainX.range([0, that._mainWidth].map(d => event.transform.applyX(d)));
         that._xAxisG.call(that._xAxis);
-
         console.log(`new x-axis: ${that._mainX.invert(0)} ${that._mainX.invert(that._mainWidth)}`);
         that.dispatchEvent(new CustomEvent("newFrameRange", {
           detail: {
@@ -142,11 +150,14 @@ export class VideoTimeline extends BaseTimeline {
         this._hoverFrameText.attr("opacity", "1.0");
         this._hoverFrameTextBackground.attr("opacity", "1.0");
 
-        if (this._displayMode == "frame") {
+        if (this.inFrameDisplayMode()) {
           this._hoverFrameText.text(this._hoverFrame);
         }
-        else if (this._displayMode == "relativeTime") {
-          this._hoverFrameText.text(this._createTimeStr(this._hoverFrame));
+        else if (this.inRelativeTimeDisplayMode()) {
+          this._hoverFrameText.text(this._createRelativeTimeString(this._hoverFrame));
+        }
+        else if (this.inUTCDisplayMode()) {
+          this._hoverFrameText.text(this._createUTCString(this._hoverFrame));
         }
 
         if (this._mainX(this._hoverFrame) < this._mainWidth * 0.5) {
@@ -178,7 +189,6 @@ export class VideoTimeline extends BaseTimeline {
    *
    * @param {integer} minFrame
    * @param {integer} maxFrame
-   * @param {float} fps
    */
   init(minFrame, maxFrame, fps) {
 
@@ -189,7 +199,6 @@ export class VideoTimeline extends BaseTimeline {
 
     this._minFrame = minFrame;
     this._maxFrame = maxFrame;
-    this._fps = fps;
     this._hoverFrame = null;
     this.redraw();
   }

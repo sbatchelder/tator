@@ -6,34 +6,60 @@ export class BaseTimeline extends TatorElement {
   constructor() {
     super();
 
+    // Refer to setDisplayMode() for valid options
     this._displayMode = "frame";
+
+    // Set to true with timeKeeperInitialized()
+    this._timeKeeperInitialized = false;
   }
 
   /**
    * Converts the provided frame number into a corresponding time string
+   * @precondition timeKeeper must be set and initialized
    * @param {integer} frame
    * @returns {string} hh:mm:ss.aa
    */
-  _createTimeStr(frame) {
-    var hours;
-    var minutes;
-    var seconds;
-    var timeStr;
-    var totalSeconds = frame / this._fps;
-    hours = Math.floor(totalSeconds / 3600);
-    totalSeconds -= hours * 3600;
-    minutes = Math.floor(totalSeconds / 60) % 60;
-    totalSeconds -= minutes * 60;
-    seconds = totalSeconds % 60;
-    seconds = seconds.toFixed(0);
-    var timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    return timeStr;
+  _createRelativeTimeString(frame) {
+    return this._timeKeeper.getRelativeTimeFromFrame(frame);
+  }
+
+  /**
+   * Converts the provided frame number into a corresponding UTC string
+   * @precondition timeKeeper must be set and initialized
+   * @param {integer} frame
+   * @param {string} mode undefined (default) | "time"
+   * @returns {string} isoformat datetime
+   */
+  _createUTCString(frame, mode) {
+    var iso = this._timeKeeper.getAbsoluteTimeFromFrame(frame);
+    if (mode == "time") {
+      return iso.split("T")[1].split(".")[0];
+    }
+    else {
+      return `${iso.split("T")[0]}\n${iso.split("T")[1].split(".")[0]}`;
+    }
   }
 
   /**
    * @abstract
+   * Function called whenever the timeline SVG components needs to be redrawn
    */
   _updateSvgData() {}
+
+  /**
+   * @param {GlobalTimeKeeper} val
+   */
+  set timeKeeper(val) {
+    this._timeKeeper = val;
+  }
+
+  /**
+   * Called when the timeKeeper has been initialized.
+   * @precondition timeKeeper must have been set
+   */
+  timeKeeperInitialized() {
+    this._timeKeeperInitialized = true;
+  }
 
   /**
    * Call this to initialize the timeline.
@@ -42,9 +68,8 @@ export class BaseTimeline extends TatorElement {
    * @abstract
    * @param {integer} minFrame
    * @param {integer} maxFrame
-   * @param {float} fps
    */
-  init(minFrame, maxFrame, fps) {}
+  init(minFrame, maxFrame) {}
 
   /**
    * Force a redraw of the timeline
@@ -55,10 +80,10 @@ export class BaseTimeline extends TatorElement {
 
   /**
    * Sets the display mode of the timeline and forces a redraw
-   * @param {string} mode "frame"|"relativeTime"
+   * @param {string} mode "frame"|"relativeTime"|"utc"
    */
   setDisplayMode(mode) {
-    const validOptions = ["frame", "relativeTime"]
+    const validOptions = ["frame", "relativeTime", "utc"]
     if (!validOptions.includes(mode)) {
       throw `Invalid mode (${mode}) provided to setDisplayMode`;
     }
@@ -67,4 +92,18 @@ export class BaseTimeline extends TatorElement {
     this.redraw();
   }
 
+  /**
+   * @returns {bool} True if display mode is frame
+   */
+  inFrameDisplayMode() { return this._displayMode == "frame"; }
+
+  /**
+   * @returns {bool} True if display mode is frame
+   */
+  inRelativeTimeDisplayMode() { return this._displayMode == "relativeTime"; }
+
+   /**
+    * @returns {bool} True if display mode is frame
+    */
+  inUTCDisplayMode() { return this._displayMode == "utc"; }
 }

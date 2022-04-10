@@ -58,18 +58,10 @@ export class EntityTimeline extends BaseTimeline {
     });
   }
 
-  /**
-   * @param {GlobalTimeKeeper} val
-   */
-  set timeKeeper(val) {
-    this._timeKeeper = val;
-    this._timeKeeperInitialized = false;
-
-    this._timeKeeper.addEventListener("initialized", () => {
-      this._timeKeeperInitialized = true;
-      this._setupAttrStyleRangeTypes();
-      this._updateData();
-    });
+  timeKeeperInitialized() {
+    this._timeKeeperInitialized = true;
+    this._setupAttrStyleRangeTypes();
+    this._updateData();
   }
 
   /**
@@ -252,7 +244,7 @@ export class EntityTimeline extends BaseTimeline {
       return;
     }
 
-    if (!this._timeKeeper) {
+    if (!this._timeKeeperInitialized) {
       return;
     }
 
@@ -376,6 +368,13 @@ export class EntityTimeline extends BaseTimeline {
         let startFrame = data.attributes[attrTypeInfo.startFrameAttr];
         let endFrame = data.attributes[attrTypeInfo.endFrameAttr];
 
+        if (startFrame != -1) {
+          startFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], startFrame);
+        }
+        if (endFrame != -1) {
+          endFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], endFrame);
+        }
+
         if (attrTypeInfo.startFrameCheckAttr && attrTypeInfo.endFrameCheckAttr) {
           // Start frame check and end frame check attributes exist.
           // #TODO This capability may go away in lieu of just using -1 values.
@@ -463,7 +462,7 @@ export class EntityTimeline extends BaseTimeline {
       return;
     }
 
-    this._mainLineHeight = 60;
+    this._mainLineHeight = 30;
     if (this._numericalData.length == 0) {
       this._mainLineHeight = 0;
     }
@@ -756,12 +755,32 @@ export class EntityTimeline extends BaseTimeline {
     //       using the traditional d3 enter/update/exit paradigm.
     this._focusSvg.selectAll('*').remove();
 
-    // X-axis that will be displayed to visualize the frame numbers
-    var focusXAxis = g => g
-      .attr("transform", `translate(0,${focusMargin.top})`)
-      .call(d3.axisTop(focusX).ticks().tickSizeOuter(0).tickFormat(d3.format("d")))
-      .call(g => g.selectAll(".tick").filter(d => focusX(d) < focusMargin.left || focusX(d) >= focusWidth - focusMargin.right).remove())
-      .call(g => g.select(".domain").remove());
+    // x-axis ticks
+    if (this.inFrameDisplayMode()) {
+      var focusXAxis = g => g
+        .attr("transform", `translate(0,${focusMargin.top})`)
+        .call(d3.axisTop(focusX).ticks().tickSizeOuter(0).tickFormat(d3.format("d")))
+        .call(g => g.selectAll(".tick").filter(d => focusX(d) < focusMargin.left || focusX(d) >= focusWidth - focusMargin.right).remove())
+        .call(g => g.select(".domain").remove());
+    }
+    else if (this.inRelativeTimeDisplayMode()) {
+      var focusXAxis = g => g
+        .attr("transform", `translate(0,${focusMargin.top})`)
+        .call(d3.axisTop(focusX).ticks().tickSizeOuter(0).tickFormat(d => {
+          return this._createRelativeTimeString(d);
+        }))
+        .call(g => g.selectAll(".tick").filter(d => focusX(d) < focusMargin.left || focusX(d) >= focusWidth - focusMargin.right).remove())
+        .call(g => g.select(".domain").remove());
+    }
+    else if (this.inUTCDisplayMode()) {
+      var focusXAxis = g => g
+        .attr("transform", `translate(0,${focusMargin.top})`)
+        .call(d3.axisTop(focusX).ticks().tickSizeOuter(0).tickFormat(d => {
+          return this._createUTCString(d, "time");
+        }))
+        .call(g => g.selectAll(".tick").filter(d => focusX(d) < focusMargin.left * 2 || focusX(d) >= focusWidth - focusMargin.right * 2).remove())
+        .call(g => g.select(".domain").remove());
+    }
 
     // States are represented as area graphs
     var focusArea = d3.area()
@@ -974,7 +993,16 @@ export class EntityTimeline extends BaseTimeline {
         if (displayXAxis) {
           focusFrameText.attr("opacity", "1.0");
           focusFrameText.attr("x", d3.pointer(event)[0]);
-          focusFrameText.text(currentFrame);
+          if (that.inFrameDisplayMode()) {
+            focusFrameText.text(currentFrame);
+          }
+          else if (that.inRelativeTimeDisplayMode()) {
+            focusFrameText.text(that._createRelativeTimeString(currentFrame));
+          }
+          else if (that.inUTCDisplayMode()) {
+            focusFrameText.text(that._createUTCString(currentFrame));
+          }
+
           var textBBox = focusFrameText.node().getBBox();
 
           focusFrameTextBackground.attr("opacity", "1.0")
@@ -1032,9 +1060,8 @@ export class EntityTimeline extends BaseTimeline {
    *
    * @param {integer} minFrame
    * @param {integer} maxFrame
-   * @param {float} fps
    */
-   init(minFrame, maxFrame, fps) {
+   init(minFrame, maxFrame) {
 
     if (minFrame != this._minFrame && this._maxFrame != maxFrame){
       // Reset the zoom if the play window has changed
@@ -1043,7 +1070,6 @@ export class EntityTimeline extends BaseTimeline {
 
     this._minFrame = minFrame;
     this._maxFrame = maxFrame;
-    this._fps = fps;
     this._updateData();
     this.redraw();
   }

@@ -515,15 +515,33 @@ annotation-player {
   padding: 2px;
 }
 
-.video-play-window-control {
+.annotation-canvas-overlay-menu {
   box-sizing: border-box;
-  width: 500px;
   overflow: initial;
   position: absolute;
   z-index: 10;
   border: 2px solid black;
   background-color: rgba(0,0,0,0.9);
   padding: 2px;
+}
+
+.annotation-canvas-overlay-menu-back {
+  padding: 8px;
+  border-bottom: 1px solid $color-charcoal--light;
+}
+
+.annotation-canvas-overlay-menu-option {
+  cursor: pointer;
+  transition-duration: 0.25s;
+  transition-property: background-color, color;
+  &:focus {
+    outline: none;
+  }
+  &:hover,
+  &:focus {
+    color: $color-white;
+    background-color: $color-purple50;
+  }
 }
 
 .video-segment-field {
@@ -546,4 +564,10 @@ annotation-player {
 
 .video-segment-block.new-window {
   background-color: $color-white;
+}
+
+.media-timeline-dialog-header {
+  box-sizing: border-box;
+  background-color: #202543;
+  width: 100%;
 }

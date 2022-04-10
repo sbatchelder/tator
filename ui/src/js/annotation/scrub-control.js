@@ -4,59 +4,37 @@ export class ScrubControl extends TatorElement {
   constructor() {
     super();
 
-    const summary = document.createElement("summary");
-    summary.style.cursor = "pointer";
-    summary.setAttribute("class", "d-flex flex-items-center rounded-1");
-    this._shadow.appendChild(summary);
+    this._btn = document.createElement("button");
+    this._btn.textContent = "Play";
+    this._shadow.appendChild(this._btn);
 
-    const div = document.createElement("div");
-    div.setAttribute("class", "px-1");
-    summary.appendChild(div);
-
-    const select = document.createElement("select");
-    select.setAttribute("class", "form-select has-border select-sm1");
-    div.appendChild(select);
-    this._select = select;
-
-    this._choices = ["Play", "Summary"];
-    for (const choice of this._choices)
-    {
-      let option = document.createElement("option");
-      option.setAttribute("value", choice);
-      option.textContent = choice;
-      select.append(option);
-    }
-    select.selectedIndex = 0; // Play
-    select.addEventListener("change", evt => {
-      const choice = evt.target.value;
-
-      if (choice == "Play") {
-        this.dispatchEvent(new Event("play"));
-      }
-      else if (choice == "Summary") {
+    this._btn.addEventListener("click", () => {
+      this._btn.blur();
+      if (this._mode == "Play") {
+        this.setValue("Summary");
         this.dispatchEvent(new Event("summary"));
       }
+      else {
+        this.setValue("Play");
+        this.dispatchEvent(new Event("play"));
+      }
     });
-  }
 
-  static get observedAttributes() {
-    return ["class", "disabled"];
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    switch (name) {
-      case "disabled":
-        if (newValue === null) {
-          this._select.removeAttribute("disabled");
-        } else {
-          this._select.setAttribute("disabled", "");
-        }
-        break;
-    }
+    this._mode = "Play";
+    this.setValue(this._mode);
   }
 
   setValue(val) {
-    this._select.value = val;
+    if (val == "Play") {
+      this._btn.textContent = "Play";
+      this._btn.setAttribute("class", "btn btn-small-height btn-fit-content btn-outline btn-clear f3 text-gray text-semibold text-uppercase px-2");
+      this._mode = "Play";
+    }
+    else if (val == "Summary") {
+      this._btn.textContent = "Summary";
+      this._btn.setAttribute("class", "btn btn-small-height btn-fit-content btn-purple50 btn-clear f3 text-semibold text-uppercase px-2");
+      this._mode = "Summary";
+    }
   }
 }
 
