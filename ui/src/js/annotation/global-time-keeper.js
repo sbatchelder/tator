@@ -9,6 +9,7 @@ export class GlobalTimeKeeper extends HTMLElement {
 
   constructor() {
     super();
+    this._lastGlobalFrame = 0;
   }
 
   /**
@@ -22,6 +23,7 @@ export class GlobalTimeKeeper extends HTMLElement {
   _createChannelGlobalTimeline(channelIndex) {
 
     var channelGaps = [];
+    var channelTimeline = [];
     var previousGlobalEndFrame = 0;
     const mediaInfoList = this._mediaChannelMap[channelIndex];
     for (let mediaIndex = 0; mediaIndex < mediaInfoList.length; mediaIndex++) {
@@ -31,8 +33,8 @@ export class GlobalTimeKeeper extends HTMLElement {
       // Set the start frame based on the absolute start time if this is the first media
       // in the channel list. Otherwise, bas
       var deltaEpoch = mediaInfo.startSecondsFromEpoch - this._minSecondsFromEpoch;
-      var globalStartFrame = Math.round(deltaEpoch / this._globalFPS);
-      
+      var globalStartFrame = Math.floor(deltaEpoch * this._globalFPS);
+
       // Update the mediaInfo object
       var globalEndFrame = globalStartFrame + mediaInfo.media.num_frames - 1;
       mediaInfo.globalStartFrame = globalStartFrame;
@@ -41,14 +43,36 @@ export class GlobalTimeKeeper extends HTMLElement {
       // Check for temporal gap
       if (previousGlobalEndFrame != globalStartFrame) {
         channelGaps.push({
-          globalStartFrame:previousGlobalEndFrame + 1,
+          globalStartFrame: previousGlobalEndFrame + 1,
+          globalEndFrame: globalStartFrame - 1
+        });
+        channelTimeline.push({
+          mediaId: null,
+          mediaName: null,
+          displayName: `Video Gap`,
+          globalStartFrame: previousGlobalEndFrame + 1,
           globalEndFrame: globalStartFrame - 1
         });
       }
+
+      // Add media to the channel timeline
+      channelTimeline.push({
+        mediaId: mediaInfo.media.id,
+        mediaName: mediaInfo.media.name,
+        displayName: `${mediaInfo.media.name} (ID: ${mediaInfo.media.id})`,
+        globalStartFrame: globalStartFrame,
+        globalEndFrame: globalEndFrame
+      });
+
       previousGlobalEndFrame = globalEndFrame;
     }
 
     this._channelGaps[channelIndex] = channelGaps;
+    this._channelTimeline[channelIndex] = channelTimeline;
+
+    if (previousGlobalEndFrame > this._lastGlobalFrame) {
+      this._lastGlobalFrame = previousGlobalEndFrame;
+    }
   }
 
   /**
@@ -86,6 +110,7 @@ export class GlobalTimeKeeper extends HTMLElement {
    * Calling this again will reinitialize everything.
    * This creates the list of temporal gaps too.
    *
+   * @param {Tator.Media} parentMedia
    * @param {array} mediaChannels - Array of arrays
    *   Each array represents a video stream/channel
    *   List of media objects to create the global timeline
@@ -94,14 +119,16 @@ export class GlobalTimeKeeper extends HTMLElement {
    *
    * @param {float} globalFPS - FPS used for the global tracker.
    */
-  init(mediaChannels, globalFPS) {
+  init(parentMedia, mediaChannels, globalFPS) {
 
+    this._parentMedia = parentMedia;
     this._globalFPS = globalFPS;
     this._mediaMap = {};
     this._temporalGaps = [];
     this._mediaChannelMap = [];
-    this._minSecondsFromEpoch = 0;
+    this._minSecondsFromEpoch = Date.now() / 1000;
     this._channelGaps = {}; // Indexed by channel index
+    this._channelTimeline = {}; // Indexed by channel index
 
     // Loop over the media and figure out how these media are stitched together.
     // Also check each media FPS is the same as the global FPS
@@ -122,7 +149,7 @@ export class GlobalTimeKeeper extends HTMLElement {
 
         // Get the global frame start and end associated with this media and apply it to the map
         var startTime = this._getMediaStart(media);
-        if (startTime > this._minSecondsFromEpoch) {
+        if (startTime < this._minSecondsFromEpoch) {
           this._minSecondsFromEpoch = startTime;
         }
 
@@ -130,7 +157,6 @@ export class GlobalTimeKeeper extends HTMLElement {
           startSecondsFromEpoch: startTime,
           media: media,
           channelIndex: channelIndex,
-          numMediaInChannel: mediaList.length,
           mediaIndex: mediaIndex
         };
 
@@ -143,8 +169,6 @@ export class GlobalTimeKeeper extends HTMLElement {
     for (let channelIndex = 0; channelIndex < this._mediaChannelMap.length; channelIndex++) {
       this._createChannelGlobalTimeline(channelIndex);
     }
-
-    this.dispatchEvent(new Event("initialized"));
   }
 
   /**
@@ -164,30 +188,110 @@ export class GlobalTimeKeeper extends HTMLElement {
     else if (mode == "matchFrame") {
       globalFrame = this._mediaMap[mediaId].globalStartFrame + frame;
     }
-    return Math.round(globalFrame);
+    return Math.floor(globalFrame);
   }
 
   /**
-   * @param {Integer} globalFrame
+   * @param {integer} globalFrame
    * @returns {array} mediaMap objects that match the provided globalFrame
    */
   getMediaInfoFromFrame(globalFrame) {
 
     var out = [];
-    for (const [mediaId, mediaInfo] of this._mediaMap.entries()) {
+    for (const [mediaId, mediaInfo] of Object.entries(this._mediaMap)) {
       if (globalFrame >= mediaInfo.globalStartFrame && globalFrame <= mediaInfo.globalEndFrame) {
         out.push(mediaInfo);
       }
     }
     return out;
-
   }
 
   /**
-   * @returns {Integer} Last global frame. Add one to this to get number of global frames.
+   * @returns {integer} Last global frame. Add one to this to get number of global frames.
    */
   getLastGlobalFrame() {
     return this._lastGlobalFrame;
+  }
+
+  /**
+   * @returns {integer} Number of channels in the timeline
+   */
+  getChannelCount() {
+    return this._mediaChannelMap.length;
+  }
+
+  /**
+   * Get a list of temporal gaps for the given channel
+   * @param {integer} channelIndex
+   * @returns {array} Array of objects with globalStartFrame and globalEndFrame fields
+   *                  that define the channel gaps
+   */
+  getChannelGaps(channelIndex) {
+    return this._channelGaps[channelIndex];
+  }
+
+  /**
+   * Get a list of media and temporal gap information for the given channel
+   * @param {integer} channelIndex
+   * @returns {array} Array of objects with the following fields that define the media
+   *                  segments and channels gaps.
+   *
+   *                  Object fields:
+   *                  mediaId, mediaName, displayName, globalStartFrame, globalEndFrame
+   */
+  getChannelTimeline(channelIndex) {
+    return this._channelTimeline[channelIndex];
+  }
+
+  /**
+   * @returns {Tator.Media}
+   */
+  getParentMedia() {
+    return this._parentMedia;
+  }
+
+  /**
+   * Gets the absolute time from the given global frame.
+   *
+   * @param {integer} globalFrame
+   * @return {string} Provided frame represented as an isostring in absolute time
+   */
+  getAbsoluteTimeFromFrame(globalFrame) {
+
+    // Convert globalFrame into global seconds
+    var globalSeconds = globalFrame / this._globalFPS;
+
+    // Add seconds padding to the start
+    var msFromEpoch = 1000 * (this._minSecondsFromEpoch + globalSeconds);
+
+    // Convert seconds from epoch to a date object
+    var thisDate = new Date(0);
+    thisDate.setUTCMilliseconds(msFromEpoch);
+
+    // Return the isostring
+    return thisDate.toISOString();
+  }
+
+  /**
+   * Gets the relative time from the given global frame.
+   *
+   * @param {integer} globalFrame
+   * @return {string} Provided frame represented as HH:MM:SS in relative time
+   */
+  getRelativeTimeFromFrame(globalFrame) {
+    var hours;
+    var minutes;
+    var seconds;
+    var timeStr;
+    var totalSeconds = globalFrame / this._globalFPS;
+    hours = Math.floor(totalSeconds / 3600);
+    totalSeconds -= hours * 3600;
+    minutes = Math.floor(totalSeconds / 60) % 60;
+    totalSeconds -= minutes * 60;
+    seconds = totalSeconds % 60;
+    seconds = seconds.toFixed(0);
+    var timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    return timeStr;
   }
 }
 

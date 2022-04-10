@@ -2,6 +2,8 @@ import { TatorElement } from "../components/tator-element.js";
 import { Utilities } from "../util/utilities.js";
 import { guiFPS } from "../annotator/video.js";
 import { RATE_CUTOFF_FOR_ON_DEMAND } from "../annotator/video.js";
+import { GlobalTimeKeeper } from "./global-time-keeper.js";
+import { tickStep } from "d3";
 
 /**
  * #TODO
@@ -46,10 +48,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
     settingsDiv.setAttribute("class", "d-flex flex-items-center");
     div.appendChild(settingsDiv);
 
-    this._timelineControlsDiv = document.createElement("div");
-    this._timelineControlsDiv.setAttribute("class", "video-timeline-control d-flex flex-row flex-items-center flex-justify-between rounded-1");
-    this._timelineControlsDiv.style.display = "none";
-    this._shadow.appendChild(this._timelineControlsDiv);
+    this._timelineZoomMenu = document.createElement("div");
+    this._timelineZoomMenu.setAttribute("class", "annotation-canvas-overlay-menu d-flex flex-row flex-items-center flex-justify-between rounded-1");
+    this._timelineZoomMenu.style.display = "none";
+    this._shadow.appendChild(this._timelineZoomMenu);
 
     this._timelineZoomButtons = {
       panLeft: null,
@@ -64,7 +66,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "Pan Timeline Left",
       "pan-timeline-left-btn"
     );
-    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomMenu.appendChild(btn);
     this._timelineZoomButtons.panLeft = btn;
     btn.addEventListener("click", () => {
       if (this._videoMode == "play") {
@@ -81,7 +83,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "Pan Timeline Right",
       "pan-timeline-right-btn"
     );
-    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomMenu.appendChild(btn);
     this._timelineZoomButtons.panRight = btn;
     btn.addEventListener("click", () => {
       if (this._videoMode == "play") {
@@ -98,7 +100,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "Zoom Timeline In",
       "zoom-timeline-in-btn"
     );
-    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomMenu.appendChild(btn);
     this._timelineZoomButtons.zoomIn = btn;
     btn.addEventListener("click", () => {
       if (this._videoMode == "play") {
@@ -115,7 +117,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "Zoom Timeline Out",
       "zoom-timeline-out-btn"
     );
-    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomMenu.appendChild(btn);
     this._timelineZoomButtons.zoomOut = btn;
     btn.addEventListener("click", () => {
       if (this._videoMode == "play") {
@@ -132,7 +134,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "Reset Timeline",
       "reset-timeline-btn"
     );
-    this._timelineControlsDiv.appendChild(btn);
+    this._timelineZoomMenu.appendChild(btn);
     this._timelineZoomButtons.reset = btn;
     btn.addEventListener("click", () => {
       if (this._videoMode == "play") {
@@ -143,25 +145,12 @@ export class AnnotationPlayerExperimental extends TatorElement {
       }
     });
 
-    this._frameTimeButton = document.createElement("frame-time-button");
-    this._frameTimeButton.addEventListener("time", () => {
-      this._videoTimeline.setDisplayMode("relativeTime");
-      this._videoSegmentSelector.setDisplayMode("relativeTime");
-    });
-
-    this._frameTimeButton.addEventListener("frame", () => {
-      this._videoTimeline.setDisplayMode("frame");
-      this._videoSegmentSelector.setDisplayMode("frame");
-    });
-
-    this._timelineControlsDiv.appendChild(this._frameTimeButton);
-
-    this._scrubControl = document.createElement("scrub-control");
-    settingsDiv.appendChild(this._scrubControl);
+    this._rateControl = document.createElement("rate-control");
+    settingsDiv.appendChild(this._rateControl);
 
     var btn = document.createElement("small-svg-button");
     btn.init(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>`,
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`,
       "Video Timeline Controls",
       "video-timeline-controls-btn"
     );
@@ -171,14 +160,14 @@ export class AnnotationPlayerExperimental extends TatorElement {
     btn.addEventListener("click", () => {
       btn.blur();
       var pos = this._videoTimelineControlsBtn.getBoundingClientRect();
-      this._timelineControlsDiv.style.top = `${pos.top - 60}px`;
-      this._timelineControlsDiv.style.left = `${pos.left - 115}px`;
-      if (this._timelineControlsDiv.style.display == "flex") {
-        this._timelineControlsDiv.style.display = "none";
+      this._timelineZoomMenu.style.top = `${pos.top - 60}px`;
+      this._timelineZoomMenu.style.left = `${pos.left - 115}px`;
+      if (this._timelineZoomMenu.style.display == "flex") {
+        this._hideCanvasMenus();
       }
       else {
-        this._timelineControlsDiv.style.display = "flex";
-        this._videoSegmentSelector.hidePlayWindowControls();
+        this._hideCanvasMenus();
+        this._timelineZoomMenu.style.display = "flex";
       }
     });
 
@@ -189,29 +178,195 @@ export class AnnotationPlayerExperimental extends TatorElement {
       "video-timeline-controls-btn"
     );
     btn._button.classList.remove("px-2");
-    //btn.setAttribute("class", "mr-6");
     settingsDiv.appendChild(btn);
     this._videoPlayWindow = btn;
     btn.addEventListener("click", () => {
       btn.blur();
-      this._timelineControlsDiv.style.display = "none";
+      this._timelineZoomMenu.style.display = "none";
       if (this._videoMode == "play") {
         this._setToSummaryMode();
       }
-      var pos = this._videoPlayWindow.getBoundingClientRect();
-      this._videoSegmentSelector.togglePlayWindowControls(pos.top, pos.left);
+      if (this._videoSegmentSelector.playWindowControlsVisible()) {
+        this._hideCanvasMenus();
+      }
+      else {
+        this._hideCanvasMenus();
+        var pos = this._videoPlayWindow.getBoundingClientRect();
+        this._videoSegmentSelector.displayPlayWindowControls(pos.top, pos.left);
+      }
+
     });
 
-    this._timelineMore = document.createElement("entity-more");
-    this._timelineMore.style.display = "block";
-    settingsDiv.appendChild(this._timelineMore);
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>`,
+      "Entity Timeline Info",
+      "entity-timeline-expand-btn"
+    );
+    btn._button.classList.remove("px-2");
+    settingsDiv.appendChild(btn);
+    this._timelineMore = btn;
 
-    this._rateControl = document.createElement("rate-control");
-    settingsDiv.appendChild(this._rateControl);
+    //
+    // Player settings menu:
+    //   Timeline Units >
+    //   Quality >
+    //   Media Timeline
+    //   Playback Settings
+    //
+    this._playerSettingsMenu = document.createElement("div");
+    this._playerSettingsMenu.setAttribute("class", "annotation-canvas-overlay-menu d-flex flex-column rounded-1");
+    this._playerSettingsMenu.style.display = "none";
+    this._shadow.appendChild(this._playerSettingsMenu);
+
+    this._timelineUnitsMenu = document.createElement("div");
+    this._timelineUnitsMenu.setAttribute("class", "annotation-canvas-overlay-menu d-flex flex-column rounded-1");
+    this._timelineUnitsMenu.style.display = "none";
+    this._shadow.appendChild(this._timelineUnitsMenu);
+
+    this._videoQualityMenu = document.createElement("div");
+    this._videoQualityMenu.setAttribute("class", "annotation-canvas-overlay-menu d-flex flex-column rounded-1");
+    this._videoQualityMenu.style.display = "none";
+    this._shadow.appendChild(this._videoQualityMenu);
+
+    // Video settings menu
+    this._playerTimelineUnits = document.createElement("div");
+    this._playerTimelineUnits.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    this._playerTimelineUnits.textContent = "Timeline Units";
+    this._playerSettingsMenu.appendChild(this._playerTimelineUnits);
+
+    this._playerTimelineUnits.addEventListener("click", () => {
+      this._displayTimelineUnitsMenu();
+    });
+
+    this._playerTimelineUnitsContent = document.createElement("div");
+    this._playerTimelineUnitsContent.setAttribute("class", "f3 text-purple text-semibold text-uppercase d-flex flex-grow px-2 flex-justify-right");
+    this._playerTimelineUnitsContent.textContent = "";
+    this._playerTimelineUnits.appendChild(this._playerTimelineUnitsContent);
+
+    var rightArrow = document.createElement("div");
+    rightArrow.textContent = ">"
+    this._playerTimelineUnits.appendChild(rightArrow);
+
+    this._playerQuality = document.createElement("div");
+    this._playerQuality.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    this._playerQuality.textContent = "Quality";
+    this._playerSettingsMenu.appendChild(this._playerQuality);
+
+    this._playerQuality.addEventListener("click", () => {
+      this._displayQualityMenu();
+    });
+
+    this._playerQualityContent  = document.createElement("div");
+    this._playerQualityContent.setAttribute("class", "f3 text-purple text-semibold text-uppercase d-flex flex-grow px-2 flex-justify-right");
+    this._playerQualityContent.textContent = "";
+    this._playerQuality.appendChild(this._playerQualityContent);
+
+    var rightArrow = document.createElement("div");
+    rightArrow.textContent = ">"
+    this._playerQuality.appendChild(rightArrow);
+
+    this._playerMediaTimeline = document.createElement("div");
+    this._playerMediaTimeline.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2");
+    this._playerMediaTimeline.textContent = "Media Timeline";
+    this._playerSettingsMenu.appendChild(this._playerMediaTimeline);
+
+    this._playerMediaTimeline.addEventListener("click", () => {
+      this._hideCanvasMenus();
+      this.dispatchEvent(new Event("openMediaTimelineInfo"));
+    });
+
+    this._playerPlaybackSettings = document.createElement("div");
+    this._playerPlaybackSettings.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2");
+    this._playerPlaybackSettings.textContent = "Playback Settings";
+    this._playerSettingsMenu.appendChild(this._playerPlaybackSettings);
+
+    this._playerPlaybackSettings.addEventListener("click", () => {
+      this._hideCanvasMenus();
+      this.dispatchEvent(new CustomEvent("openVideoSettings", {
+        composed: true
+      }));
+    });
+
+    // Timeline units menu
+    var backOption = document.createElement("div");
+    backOption.setAttribute("class", "annotation-canvas-overlay-menu-back annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    backOption.textContent = "< Back";
+    this._timelineUnitsMenu.appendChild(backOption);
+    backOption.addEventListener("click", () => {
+      this._displayPlayerSettingsMenu();
+    });
+
+    this._timelineUnitsFrame = document.createElement("div");
+    this._timelineUnitsFrame.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    this._timelineUnitsFrame.textContent = "Frame";
+    this._timelineUnitsMenu.appendChild(this._timelineUnitsFrame);
+
+    this._timelineUnitsFrame.addEventListener("click", () => {
+      this._setTimelineDisplayMode("frame");
+    });
+
+    this._timelineUnitsRelativeTime = document.createElement("div");
+    this._timelineUnitsRelativeTime.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    this._timelineUnitsRelativeTime.textContent = "Relative Time";
+    this._timelineUnitsMenu.appendChild(this._timelineUnitsRelativeTime);
+
+    this._timelineUnitsRelativeTime.addEventListener("click", () => {
+      this._setTimelineDisplayMode("relativeTime");
+    });
+
+    this._timelineUnitsUTC = document.createElement("div");
+    this._timelineUnitsUTC.setAttribute("class", "annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    this._timelineUnitsUTC.textContent = "UTC Time";
+    this._timelineUnitsMenu.appendChild(this._timelineUnitsUTC);
+
+    this._timelineUnitsUTC.addEventListener("click", () => {
+      this._setTimelineDisplayMode("utc");
+    });
+
+    // Video quality menu
+    var backOption = document.createElement("div");
+    backOption.setAttribute("class", "annotation-canvas-overlay-menu-back annotation-canvas-overlay-menu-option f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    backOption.textContent = "< Back";
+    this._videoQualityMenu.appendChild(backOption);
+    backOption.addEventListener("click", () => {
+      this._displayPlayerSettingsMenu();
+    });
+
+    var wrapper = document.createElement("div");
+    wrapper.setAttribute("class", "f3 text-gray text-semibold text-uppercase d-flex flex-grow px-2 py-2 flex-items-center");
+    wrapper.textContent = "Playback Quality";
+    this._videoQualityMenu.appendChild(wrapper);
 
     this._qualityControl = document.createElement("quality-control");
-    settingsDiv.appendChild(this._qualityControl);
+    this._qualityControl._advancedSettings.style.display = "none";
+    this._qualityControl.setAttribute("class", "px-2");
+    wrapper.appendChild(this._qualityControl);
 
+    // Main button
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`,
+      "Player Settings",
+      "player-settings-btn"
+    );
+    btn._button.classList.remove("px-2");
+    settingsDiv.appendChild(btn);
+    this._playerSettingsBtn = btn;
+
+    this._playerSettingsBtn.addEventListener("click", () => {
+      this._playerSettingsBtn.blur();
+      if (this._playerSettingsMenu.style.display == "flex") {
+        this._hideCanvasMenus();
+      }
+      else {
+        this._displayPlayerSettingsMenu();
+      }
+    });
+
+    //
+    // Timeline div
+    //
     this._timelineDiv = document.createElement("div");
     this._timelineDiv.setAttribute("class", "scrub__bar d-flex flex-items-center flex-grow px-4");
     playerDiv.appendChild(this._timelineDiv);
@@ -236,10 +391,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._totalTime.setAttribute("class", "px-2 text-gray");
     this._totalTime.textContent = "/ 0:00";
     playButtons.appendChild(this._totalTime);
-
-    //this._timelineMore = document.createElement("entity-more");
-    //this._timelineMore.style.display = "block";
-    //this._timelineDiv.appendChild(this._timelineMore);
 
     var outerDiv = document.createElement("div");
     outerDiv.style.width = "100%";
@@ -291,6 +442,55 @@ export class AnnotationPlayerExperimental extends TatorElement {
     const frameNext = document.createElement("frame-next");
     frameDiv.appendChild(frameNext);
 
+    this._utcBtn = document.createElement("button");
+    this._utcBtn.setAttribute("class", "btn btn-small-height btn-fit-content btn-clear btn-outline text-gray f3 text-semibold px-2");
+    this._utcBtn.textContent = "UTC";
+    this._utcBtn.style.marginLeft = "10px";
+    playButtons.appendChild(this._utcBtn);
+
+    this._utcDiv = document.createElement("div");
+    this._utcDiv.setAttribute("class", "annotation-canvas-overlay-menu d-flex flex-row flex-items-center flex-justify-between rounded-1");
+    this._utcDiv.style.display = "none";
+    this._shadow.appendChild(this._utcDiv);
+
+    this._utcLabel = document.createElement("span");
+    this._utcLabel.setAttribute("class", "f2 text-center text-semibold text-gray px-2");
+    this._utcLabel.textContent = "N/A";
+    this._utcDiv.appendChild(this._utcLabel);
+
+    var btn = document.createElement("small-svg-button");
+    btn.init(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`,
+      "Copy UTC",
+      "copy-utc-btn"
+    );
+    btn._button.classList.remove("px-2");
+    this._utcDiv.appendChild(btn);
+    btn.addEventListener("click", () => {
+      btn.blur();
+      navigator.clipboard.writeText(this._utcLabel.textContent).then(() => {
+        Utilities.showSuccessIcon("Copied UTC time to clipboard!")
+      });
+    });
+
+    this._utcBtn.addEventListener("click", () => {
+      this._utcBtn.blur();
+      var pos = this._utcBtn.getBoundingClientRect();
+      this._utcDiv.style.top = `${pos.top - 60}px`;
+      this._utcDiv.style.left = `${pos.left - 80}px`;
+      if (this._utcDiv.style.display == "flex") {
+        this._hideCanvasMenus();
+      }
+      else {
+        this._hideCanvasMenus();
+        this._utcDiv.style.display = "flex";
+      }
+    });
+
+    this._scrubControl = document.createElement("scrub-control");
+    this._scrubControl.style.marginLeft = "10px";
+    playButtons.appendChild(this._scrubControl);
+
     this._volume_control = document.createElement("volume-control");
     settingsDiv.appendChild(this._volume_control);
     this._volume_control.addEventListener("volumeChange", (evt) => {
@@ -304,6 +504,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._scrubInterval = 1000.0/Math.min(guiFPS,30);
     this._lastScrub = Date.now();
     this._rate = 1;
+    this._setTimelineDisplayMode("frame");
 
      // Magic number matching standard header + footer
      // #TODO This should be re-thought and more flexible initially
@@ -379,6 +580,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._video.addEventListener("canvasResized", () => {
       this._videoTimeline.redraw();
       this._entityTimeline.redraw();
+      this._videoSegmentSelector.redraw();
     });
 
     this._video.addEventListener("frameChange", evt => {
@@ -388,6 +590,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._currentFrameText.textContent = frame;
       this._currentTimeText.style.width = 10 * (time.length - 1) + 5 + "px";
       this._currentFrameText.style.width = (15 * String(frame).length) + "px";
+
+      if (this._timeKeeper != null) {
+        this._utcLabel.textContent = this._timeKeeper.getAbsoluteTimeFromFrame(frame);
+      }
       this._setTimeControlStyle();
       this._slider.value = frame;
     });
@@ -425,6 +631,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
      */
 
     this._timelineMore.addEventListener("click", () => {
+      this._timelineMore.blur();
       this._displayTimelineLabels = !this._displayTimelineLabels;
       this._entityTimeline.showFocus(this._displayTimelineLabels);
       this._videoHeightPadObject.height = this._headerFooterPad + this._controls.offsetHeight + this._timelineDiv.offsetHeight;
@@ -730,9 +937,21 @@ export class AnnotationPlayerExperimental extends TatorElement {
     }
   }
 
+  /**
+   * @param {GlobalTimeKeeper} val - Must be initialized already.
+   */
   set timeKeeper(val) {
     this._timeKeeper = val;
+
+    this._videoTimeline.timeKeeper = val;
+    this._videoSegmentSelector.timeKeeper = val;
     this._entityTimeline.timeKeeper = val;
+
+    this._videoTimeline.timeKeeperInitialized();
+    this._videoSegmentSelector.timeKeeperInitialized();
+    this._entityTimeline.timeKeeperInitialized();
+
+    this._initializeMediaTimeline();
   }
 
   set quality(val) {
@@ -747,6 +966,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._video.undoBuffer = val;
   }
 
+  set mediaType (val) {
+    this._mediaType = val;
+  }
+
   set mediaInfo(val) {
     this._video.mediaInfo = val;
     this._mediaInfo = val;
@@ -755,11 +978,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._totalTime.textContent = "/ " + this._frameToTime(val.num_frames);
     this._totalTime.style.width = 10 * (this._totalTime.textContent.length - 1) + 5 + "px";
 
-    // Initialize the media segments and the current play window
-    this._initializeMediaTimeline(this._mediaInfo);
-    this._setPlayWindow(0);
-
-    this._video.loadFromVideoObject(val, this.mediaType, this._quality, null, null, null, this._videoHeightPadObject, this._seekQuality, this._scrubQuality)
+    this._video.loadFromVideoObject(val, this._mediaType, this._quality, null, null, null, this._videoHeightPadObject, this._seekQuality, this._scrubQuality)
       .then(() => {
         if (this._video.allowSafeMode) {
           this._video.allowSafeMode = this._allowSafeMode;
@@ -806,7 +1025,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       // Hide volume on videos with no audio
       this._volume_control.style.display = "none";
     }
-    this._volume_control.volume = this.mediaType['default_volume'];
+    this._volume_control.volume = this._mediaType['default_volume'];
     if (val.media_files && 'streaming' in val.media_files)
     {
       let quality_list = [];
@@ -828,8 +1047,59 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._entityTimeline.annotationData = val;
   }
 
-  set timeKeeper(val) {
-    this._entityTimeline.timeKeeper = val;
+  _displayPlayerSettingsMenu() {
+    this._hideCanvasMenus();
+
+    var pos = this._playerSettingsBtn.getBoundingClientRect();
+    this._playerSettingsMenu.style.top = `${pos.top - 150}px`;
+    this._playerSettingsMenu.style.left = `${pos.left - 180}px`;
+
+    this._playerTimelineUnitsContent.textContent = this._displayMode;
+    this._playerQualityContent.textContent = this._qualityControl._quality;
+    this._playerSettingsMenu.style.display = "flex";
+  }
+
+  _displayTimelineUnitsMenu() {
+    this._hideCanvasMenus();
+
+    var pos = this._playerSettingsBtn.getBoundingClientRect();
+    this._timelineUnitsMenu.style.top = `${pos.top - 150}px`;
+    this._timelineUnitsMenu.style.left = `${pos.left - 180}px`;
+
+    this._timelineUnitsMenu.style.display = "flex";
+  }
+
+  _displayQualityMenu() {
+    this._hideCanvasMenus();
+
+    var pos = this._playerSettingsBtn.getBoundingClientRect();
+    this._videoQualityMenu.style.top = `${pos.top - 150}px`;
+    this._videoQualityMenu.style.left = `${pos.left - 180}px`;
+
+    this._videoQualityMenu.style.display = "flex";
+  }
+
+  /**
+   * Hides all the annotator canvas overlay menus
+   */
+  _hideCanvasMenus() {
+    this._playerSettingsMenu.style.display = "none";
+    this._timelineUnitsMenu.style.display = "none";
+    this._videoQualityMenu.style.display = "none";
+    this._timelineZoomMenu.style.display = "none";
+    this._utcDiv.style.display = "none";
+    this._videoSegmentSelector.hidePlayWindowControls();
+  }
+
+  /**
+   * Sets display mode to be used for the timelines
+   * @param {string} mode "frame"|"relativeTime"|"utc"
+   */
+  _setTimelineDisplayMode(mode) {
+    this._displayMode = mode;
+    this._videoTimeline.setDisplayMode(this._displayMode);
+    this._videoSegmentSelector.setDisplayMode(this._displayMode);
+    this._entityTimeline.setDisplayMode(this._displayMode);
   }
 
   _currentGlobalFrame() {
@@ -856,15 +1126,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoTimeline.style.display = "none";
     this._videoSegmentSelector.style.display = "block";
 
-    this._videoTimeline.init(
-      0,
-      this._lastGlobalFrame,
-      this._mediaInfo.fps);
-
-    this._entityTimeline.init(
-      0,
-      this._lastGlobalFrame,
-      this._mediaInfo.fps);
+    this._videoTimeline.init(0, this._lastGlobalFrame);
+    this._entityTimeline.init(0, this._lastGlobalFrame);
 
     this._setTimeControlStyle();
     this._scrubControl.setValue("Summary");
@@ -878,11 +1141,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._rewind.setAttribute("disabled", "");
 
     this._videoSegmentSelector.init(
-      this._lastGlobalFrame,
       this._playWindowInfo.globalStartFrame,
-      this._playWindowInfo.globalEndFrame,
-      this._mediaInfo.fps
-    );
+      this._playWindowInfo.globalEndFrame);
 
     this._videoTimeline.hidden = false;
     this._videoSegmentSelector.hidden = false;
@@ -898,13 +1158,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._videoTimeline.init(
       this._playWindowInfo.globalStartFrame,
-      this._playWindowInfo.globalEndFrame,
-      this._mediaInfo.fps);
+      this._playWindowInfo.globalEndFrame);
 
     this._entityTimeline.init(
       this._playWindowInfo.globalStartFrame,
-      this._playWindowInfo.globalEndFrame,
-      this._mediaInfo.fps);
+      this._playWindowInfo.globalEndFrame);
 
     this._slider.setAttribute("min", this._playWindowInfo.globalStartFrame);
     this._slider.setAttribute("max", this._playWindowInfo.globalEndFrame);
@@ -932,7 +1190,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
   }
 
   _resizeHandler() {
-    this._timelineControlsDiv.style.display = "none";
+    this._timelineZoomMenu.style.display = "none";
     this._videoSegmentSelector.hidePlayWindowControls();
   }
 
@@ -963,29 +1221,13 @@ export class AnnotationPlayerExperimental extends TatorElement {
    * This should be executed during media initialization so that other components of the
    * annotator can be initialized.
    *
-   * @param {Tator.Media} initMedia
    * @postcondition this._playWindowInfo is set
    * @postcondition this._mediaMap is set
    */
-  _initializeMediaTimeline(initMedia) {
+  _initializeMediaTimeline() {
 
-    this._mediaMap = [];
-
-    // #TODO Change this later to deal with the append logic
-    var mediaList = [initMedia];
-
-    // Create the map that is used to associate a global frame with media
-    var globalFrame = 0;
-    for (const media of mediaList) {
-      var mapObject = {
-        globalStartFrame: globalFrame,
-        media: media
-      };
-      globalFrame += media.num_frames - 1;
-      mapObject.globalEndFrame = globalFrame;
-      globalFrame += 1;
-    }
-    this._lastGlobalFrame = globalFrame - 1;
+    this._lastGlobalFrame = this._timeKeeper.getLastGlobalFrame();
+    var initMedia = this._timeKeeper.getMediaInfoFromFrame(0)[0].media // #TODO
 
     const windowSize = Math.floor(initMedia.num_frames / 5);
     this._playWindowInfo = {
@@ -994,20 +1236,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
       windowSize: windowSize,
       fps: initMedia.fps
     };
-  }
-
-  /**
-   * @param {integer} globalFrame
-   * @returns Tator.Media
-   */
-  _getMedia(globalFrame) {
-    for (const info of this._mediaMap) {
-      if (globalFrame >= info.globalStartFrame && globalFrame <= info.globalEndFrame) {
-        return info.media;
-      }
-    }
-    console.error(`No matching mediaMap entry for global frame: ${globalFrame}`);
-    return null;
   }
 
   /**

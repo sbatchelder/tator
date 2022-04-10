@@ -1208,7 +1208,7 @@ export class AnnotationCanvas extends TatorElement
       {
         this.addEventListener("frameChange", (evt) => {
           const frame = evt.detail.frame;
-          const seconds = Math.floor(frame / this._mediaInfo.fps);
+          const seconds = frame / this._mediaInfo.fps;
           update_function(seconds);
         });
       }

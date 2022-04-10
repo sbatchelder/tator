@@ -87,9 +87,19 @@ export class AnnotationPageExperimental extends TatorPage {
 
     this._timeKeeper = document.createElement("global-time-keeper");
 
+    this._mediaTimelineDialog = document.createElement("media-timeline-dialog");
+    this._main.appendChild(this._mediaTimelineDialog);
+
+    this._mediaTimelineDialog.addEventListener("close", () => {
+      this.removeAttribute("has-open-modal", "");
+      this._mediaTimelineDialog.removeAttribute("is-open", "");
+      document.body.classList.remove("shortcuts-disabled");
+    });
+
     this._progressDialog.addEventListener("close", () => {
       this.removeAttribute("has-open-modal", "");
       this._progressDialog.removeAttribute("is-open", "");
+      document.body.classList.remove("shortcuts-disabled");
     });
 
     this._progressDialog.addEventListener("jobsDone", evt => {
@@ -193,19 +203,16 @@ export class AnnotationPageExperimental extends TatorPage {
               player.addDomParent({"object": this._headerDiv,
                                    "alignTo":  this._main});
               this._main.appendChild(player);
-              player.mediaInfo = data;
-              this._setupInitHandlers(player);
-              this._getMetadataTypes(player, player._video._canvas);
-              this._setupTimeKeeper(data);
-              this._videoSettingsDialog.mode("single", [data]);
-              this._settings._capture.addEventListener(
-                'captureFrame',
-                (e) =>
-                  {
-                    player._video.captureFrame(e.detail.localizations);
-                  });
-              this._videoSettingsDialog.addEventListener("apply", (evt) => {
-                player.apply
+              this.initPage(data).then(() => {
+                this._settings._capture.addEventListener(
+                  'captureFrame',
+                  (e) =>
+                    {
+                      player._video.captureFrame(e.detail.localizations);
+                    });
+                this._videoSettingsDialog.addEventListener("apply", (evt) => {
+                  player.apply
+                });
               });
             }
             else {
@@ -329,15 +336,70 @@ export class AnnotationPageExperimental extends TatorPage {
     }
   }
 
+  async initPage(pageMedia) {
+
+    // First, gather all the media and generate the timeline
+    this._setupTimeKeeper(pageMedia).then(() => {
+
+      // Next, set up the video player.
+      this._player.timeKeeper = this._timeKeeper;
+      this._player.mediaInfo = pageMedia;
+      this._setupInitHandlers(this._player);
+
+      // Finally, gather all the annotation data.
+      this._getMetadataTypes(this._player);
+
+      // Other dialog window setup
+      this._videoSettingsDialog.mode("single", [pageMedia]);
+      this._mediaTimelineDialog.timeKeeper = this._timeKeeper;
+
+    });
+
+  }
+
   /**
    * Sets up the global time keeper using the provided media.
    * @param {Tator.Media} parentMedia
    */
   _setupTimeKeeper(parentMedia) {
-    this._player.timeKeeper = this._timeKeeper;
-    var mediaListByChannel = [];
-    mediaListByChannel.push([parentMedia]);
-    this._timeKeeper.init(mediaListByChannel, parentMedia.fps);
+    this._mediaList = [];
+
+    var donePromise = new Promise(resolve => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const yo = searchParams.has("yo");
+      if (yo) {
+        var mediaIds = searchParams.getAll("yo");
+        var mediaIdStr = "";
+        for (let idx = 0; idx < mediaIds.length; idx++) {
+          mediaIdStr += mediaIds[idx];
+          if (idx < mediaIds.length - 1) {
+            mediaIdStr += ","
+          }
+        }
+        fetch(`/rest/Medias/${parentMedia.project}?media_id=${mediaIdStr}&presigned=28800`, {
+          method: "GET",
+          credentials: "same-origin",
+          headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          }
+        })
+        .then(response => response.json())
+        .then(mediaList => {
+          this._mediaList = mediaList;
+          this._timeKeeper.init(parentMedia, [this._mediaList], parentMedia.fps);
+          resolve();
+        });
+      }
+      else {
+        this._mediaList.push(parentMedia);
+        this._timeKeeper.init(parentMedia, [this._mediaList], parentMedia.fps);
+        resolve();
+      }
+    });
+
+    return donePromise;
   }
 
   _setupInitHandlers(canvas) {
@@ -534,6 +596,13 @@ export class AnnotationPageExperimental extends TatorPage {
       this.setAttribute("has-open-modal", "");
       document.body.classList.add("shortcuts-disabled");
     });
+
+    this._player.addEventListener("openMediaTimelineInfo", () => {
+      this._mediaTimelineDialog.setupDisplay();
+      this._mediaTimelineDialog.setAttribute("is-open", "");
+      this.setAttribute("has-open-modal", "");
+      document.body.classList.add("shortcuts-disabled");
+    });
   }
 
   _getMetadataTypes(canvas, canvasElement, block_signals, subelement_id, update) {
@@ -685,15 +754,14 @@ export class AnnotationPageExperimental extends TatorPage {
                                                                   || Number(type.id.split('_')[1]) == localizationTypeId))[0];
           }
         }
-        this._data.init(dataTypes, this._version, projectId, mediaId, update, !block_signals);
-        this._data.addEventListener("freshData", evt => {});
-        this._mediaDataCount += 1;
 
-        // Pull the data / iniitliaze the app if we are using the multi-view player and
-        // if all of the media has already registered their data types
-        if (this._mediaDataCount == this._numberOfMedia && this._player.mediaType.dtype == "multi") {
-          this._data.initialUpdate();
+        // #TODO Will need to update this for the multi case
+        this._data.addEventListener("freshData", evt => {});
+        for (const media of this._mediaList) {
+          this._data.init(dataTypes, this._version, projectId, media.id, false, true);
         }
+
+        this._data.initialUpdate();
 
         canvas.undoBuffer = this._undo;
         canvas.annotationData = this._data;
