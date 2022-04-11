@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { mode } from "d3";
 import { v1 as uuidv1 } from "uuid";
 import { BaseTimeline } from "../annotation/base-timeline.js";
 
@@ -93,19 +94,25 @@ export class EntityTimeline extends BaseTimeline {
       if (dataType.interpolation == "attr_style_range") {
         // To support attr_style_range, there must at least be one set of
         // start_frame|end_frame style attributes. Grab the start_frame/end_frame info.
+        // Same applies to start_utc|end_utc style attributes
         //
         // There can actually be multiple start_frame|end_frame pairs. If this is the case,
         // there has to be a range associated. If not, then don't show anything and throw a
         // warning
+        var startUTCAttr;
+        var endUTCAttr;
         var startFrameAttr;
         var endFrameAttr;
         var startFrameCheckAttr;
         var endFrameCheckAttr;
         var inVideoCheckAttr;
         var inVideoCheckAttrList = [];
+        var startUTCAttrList = [];
+        var endUTCAttrList = [];
         var startFrameAttrList = [];
         var endFrameAttrList = [];
         var rangeList = [];
+        var mode;
 
         for (const attr of dataType.attribute_types) {
           const style = attr['style'];
@@ -116,9 +123,11 @@ export class EntityTimeline extends BaseTimeline {
             const name = attr['name'];
 
             if (styleOptions.includes("start_frame")) {
+              mode = "frame";
               startFrameAttrList.push(name);
             }
             else if (styleOptions.includes("end_frame")) {
+              mode = "frame";
               endFrameAttrList.push(name);
             }
             else if (styleOptions.includes("start_frame_check")) {
@@ -126,6 +135,14 @@ export class EntityTimeline extends BaseTimeline {
             }
             else if (styleOptions.includes("end_frame_check")) {
               endFrameCheckAttr = name;
+            }
+            else if (styleOptions.includes("start_utc")) {
+              mode = "utc";
+              startUTCAttrList.push(name);
+            }
+            else if (styleOptions.includes("end_utc")) {
+              mode = "utc";
+              endUTCAttrList.push(name);
             }
             else if (styleOptions.includes("in_video_check")) {
               inVideoCheckAttrList.push(name);
@@ -137,18 +154,32 @@ export class EntityTimeline extends BaseTimeline {
         }
 
         if (startFrameAttrList.length == 1 && endFrameAttrList.length == 1) {
-          startFrameAttr = startFrameAttrList[0];
-          endFrameAttr = endFrameAttrList[0]
+
+          if (mode == "frame") {
+            startFrameAttr = startFrameAttrList[0];
+            endFrameAttr = endFrameAttrList[0];
+            startUTCAttr = null;
+            endUTCAttr = null;
+          }
+          else if (mode == "utc") {
+            startFrameAttr = null;
+            endFrameAttr = null;
+            startUTCAttr = startUTCAttrList[0];
+            endUTCAttr = endUTCAttrList[0];
+          }
           inVideoCheckAttr = null;
 
           this._attrStyleRangeTypes.push({
             dataType: dataType,
             name: dataType.name,
+            mode: mode,
+            startUTCAttr: startUTCAttr,
+            endUTCAttr: endUTCAttr,
             startFrameAttr: startFrameAttr,
             endFrameAttr: endFrameAttr,
             startFrameCheckAttr: startFrameCheckAttr,
             endFrameCheckAttr: endFrameCheckAttr,
-            inVideoCheckAttr: inVideoCheckAttr
+            inVideoCheckAttr: inVideoCheckAttr,
           });
         }
         else if (startFrameAttrList.length > 1 &&
@@ -175,8 +206,18 @@ export class EntityTimeline extends BaseTimeline {
               break;
             }
 
-            startFrameAttr = rangeTokens[0];
-            endFrameAttr = rangeTokens[1];
+            if (mode == "frame") {
+              startFrameAttr = rangeTokens[0];
+              endFrameAttr = rangeTokens[1];
+              startUTCAttr = null;
+              endUTCAttr = null;
+            }
+            else if (mode == "utc") {
+              startUTCAttr = rangeTokens[0];
+              endUTCAttr = rangeTokens[1];
+              startFrameAttr = null;
+              endFrameAttr = null;
+            }
             inVideoCheckAttr = null;
 
             if (rangeTokens.length == 3) {
@@ -198,6 +239,9 @@ export class EntityTimeline extends BaseTimeline {
             this._attrStyleRangeTypes.push({
               dataType: dataType,
               name: rangeInfo.name,
+              mode: mode,
+              startUTCAttr: startUTCAttr,
+              endUTCAttr: endUTCAttr,
               startFrameAttr: startFrameAttr,
               endFrameAttr: endFrameAttr,
               startFrameCheckAttr: null,
@@ -365,8 +409,17 @@ export class EntityTimeline extends BaseTimeline {
 
       let graphData = [];
       for (let data of allData) {
-        let startFrame = data.attributes[attrTypeInfo.startFrameAttr];
-        let endFrame = data.attributes[attrTypeInfo.endFrameAttr];
+
+        var startFrame;
+        var endFrame;
+        if (attrTypeInfo.mode == "frame") {
+          startFrame = data.attributes[attrTypeInfo.startFrameAttr];
+          endFrame = data.attributes[attrTypeInfo.endFrameAttr];
+        }
+        else if (attrTypeInfo.mode == "utc") {
+          startFrame = this._timeKeeper.getGlobalFrame("utc", data.media, data.attributes[attrTypeInfo.startUTCAttr]);
+          endFrame = this._timeKeeper.getGlobalFrame("utc", data.media, data.attributes[attrTypeInfo.endUTCAttr]);
+        }
 
         if (startFrame != -1) {
           startFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media, startFrame);

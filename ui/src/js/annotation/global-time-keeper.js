@@ -172,13 +172,14 @@ export class GlobalTimeKeeper extends HTMLElement {
   }
 
   /**
-   * @param {string} mode - "mediaStart" | "mediaEnd" | "matchFrame"
+   * @param {string} mode - "mediaStart" | "mediaEnd" | "matchFrame" | "utc"
    * @param {array} mediaIdList - Loop through this list of media IDs. If there's a match use that
    *                              to determine the media frame -> global frame mapping.
-   * @param {integer} frame - Only used if mode is "matchFrame"
+   * @param {integer|string} time - integer, if "matchFrame", represents frame
+   *                                string, if "utc", represets isoformat datetime
    * @returns {integer} Global frame associated with provided parameters
    */
-  getGlobalFrame(mode, mediaList, frame) {
+  getGlobalFrame(mode, mediaList, time) {
     var globalFrame;
     var mediaId;
 
@@ -196,7 +197,11 @@ export class GlobalTimeKeeper extends HTMLElement {
       globalFrame = this._mediaMap[mediaId].globalEndFrame;
     }
     else if (mode == "matchFrame") {
-      globalFrame = this._mediaMap[mediaId].globalStartFrame + frame;
+      globalFrame = this._mediaMap[mediaId].globalStartFrame + time;
+    }
+    else if (mode == "utc") {
+      let secondsSinceEpoch = Date.parse(time) / 1000.0;
+      globalFrame = (secondsSinceEpoch - this._minSecondsFromEpoch) * this._globalFPS;
     }
     return Math.floor(globalFrame);
   }
