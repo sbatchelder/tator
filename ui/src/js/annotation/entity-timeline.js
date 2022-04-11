@@ -282,7 +282,7 @@ export class EntityTimeline extends BaseTimeline {
                 graphValue = 1.0;
               }
               graphData.push({
-                frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], data.frame),
+                frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media, data.frame),
                 value: graphValue,
                 actualValue: value});
             }
@@ -321,7 +321,7 @@ export class EntityTimeline extends BaseTimeline {
                     maxValue = value;
                   }
                   graphData.push({
-                    frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], data.frame),
+                    frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media, data.frame),
                     value: 0.0,
                     actualValue: value});
                 }
@@ -369,30 +369,30 @@ export class EntityTimeline extends BaseTimeline {
         let endFrame = data.attributes[attrTypeInfo.endFrameAttr];
 
         if (startFrame != -1) {
-          startFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], startFrame);
+          startFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media, startFrame);
         }
         if (endFrame != -1) {
-          endFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media[0], endFrame);
+          endFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media, endFrame);
         }
 
         if (attrTypeInfo.startFrameCheckAttr && attrTypeInfo.endFrameCheckAttr) {
           // Start frame check and end frame check attributes exist.
           // #TODO This capability may go away in lieu of just using -1 values.
           if (data.attributes[attrTypeInfo.startFrameCheckAttr] === false) {
-            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media[0]);
+            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media);
           }
           if (data.attributes[attrTypeInfo.endFrameCheckAttr] === false) {
-            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media[0]);
+            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media);
           }
         }
         else {
           // Start/end frame check attributes don't exist.
           // Just assume if there's a -1, it's going to stretch
           if (startFrame == -1) {
-            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media[0]);
+            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media);
           }
           if (endFrame == -1) {
-            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media[0]);
+            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media);
           }
         }
 

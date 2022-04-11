@@ -173,12 +173,22 @@ export class GlobalTimeKeeper extends HTMLElement {
 
   /**
    * @param {string} mode - "mediaStart" | "mediaEnd" | "matchFrame"
-   * @param {integer} mediaId
+   * @param {array} mediaIdList - Loop through this list of media IDs. If there's a match use that
+   *                              to determine the media frame -> global frame mapping.
    * @param {integer} frame - Only used if mode is "matchFrame"
    * @returns {integer} Global frame associated with provided parameters
    */
-  getGlobalFrame(mode, mediaId, frame) {
+  getGlobalFrame(mode, mediaList, frame) {
     var globalFrame;
+    var mediaId;
+
+    for (const id of mediaList) {
+      if (id in this._mediaMap) {
+        mediaId = id;
+        break;
+      }
+    }
+
     if (mode == "mediaStart") {
       globalFrame = this._mediaMap[mediaId].globalStartFrame;
     }
