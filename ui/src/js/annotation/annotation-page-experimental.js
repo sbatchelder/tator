@@ -1199,6 +1199,9 @@ export class AnnotationPageExperimental extends TatorPage {
     .then(result => {
       var registeredAnnotatorAlgos = [];
       for (const alg of result) {
+        if (alg.categories == null) {
+          continue;
+        }
         if (alg.categories.includes("annotator-view")) {
           registeredAnnotatorAlgos.push(alg.name);
           if (alg.name == this._extend_track_algo_name) {
