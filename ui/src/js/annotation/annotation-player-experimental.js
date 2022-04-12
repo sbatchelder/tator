@@ -1227,7 +1227,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
   _initializeMediaTimeline() {
 
     this._lastGlobalFrame = this._timeKeeper.getLastGlobalFrame();
-    var initMedia = this._timeKeeper.getMediaInfoFromFrame(0)[0].media // #TODO
+    var initMedia = this._timeKeeper.getMediaFromFrame(0)[0]; // #TODO
 
     const windowSize = Math.floor(initMedia.num_frames / 5);
     this._playWindowInfo = {
@@ -1236,6 +1236,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
       windowSize: windowSize,
       fps: initMedia.fps
     };
+
+    this._totalTime.textContent = "/ " + this._frameToTime(this._timeKeeper.getNumberFrames());
   }
 
   /**

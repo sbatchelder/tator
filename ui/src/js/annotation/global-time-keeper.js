@@ -208,17 +208,31 @@ export class GlobalTimeKeeper extends HTMLElement {
 
   /**
    * @param {integer} globalFrame
-   * @returns {array} mediaMap objects that match the provided globalFrame
+   * @returns {array} Tator.Media objects that match the provided globalFrame
    */
-  getMediaInfoFromFrame(globalFrame) {
-
+  getMediaFromFrame(globalFrame) {
     var out = [];
     for (const [mediaId, mediaInfo] of Object.entries(this._mediaMap)) {
       if (globalFrame >= mediaInfo.globalStartFrame && globalFrame <= mediaInfo.globalEndFrame) {
-        out.push(mediaInfo);
+        out.push(mediaInfo.media);
       }
     }
     return out;
+  }
+
+  /**
+   * @param {integer} mediaId - ID of media object to get the relative media frame of
+   * @param {integer} globalFrame - Global frame to convert to relative media frame
+   * @returns {integer|null} Media frame is returned. Null if media ID does not match any
+   *                         of the existing entries.
+   */
+  getMediaFrame(mediaId, globalFrame) {
+    for (const [thisId, mediaInfo] of Object.entries(this._mediaMap)) {
+      if (mediaId == thisId) {
+        return globalFrame  - mediaInfo.globalStartFrame;
+      }
+    }
+    return null;
   }
 
   /**
@@ -226,6 +240,15 @@ export class GlobalTimeKeeper extends HTMLElement {
    */
   getLastGlobalFrame() {
     return this._lastGlobalFrame;
+  }
+
+  getNumberFrames() {
+    if (this._lastGlobalFrame > 0) {
+      return this._lastGlobalFrame - 1;
+    }
+    else {
+      return this._lastGlobalFrame;
+    }
   }
 
   /**
