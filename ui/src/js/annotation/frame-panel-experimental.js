@@ -16,16 +16,19 @@ export class FramePanelExperimental extends TatorElement {
     div.appendChild(this._attributes);
   }
 
+  /**
+   * @param {GlobalTimeKeeper} val
+   */
+  set timeKeeper(val) {
+    this._timeKeeper = val;
+  }
+
   set permission(val) {
     this._attributes.permission = val;
   }
 
   set undoBuffer(val) {
     this._undo = val;
-  }
-
-  set stateMediaIds(val) {
-    this._stateMediaIds = val;
   }
 
   set annotationData(val) {
@@ -49,21 +52,21 @@ export class FramePanelExperimental extends TatorElement {
       if (values !== null) {
         this._blockingUpdates = true;
         const data = this._data._dataByType.get(val.id);
-        const index = data.findIndex(elem => elem.frame === this._globalFrame);
+        const index = data.findIndex(elem => this._getGlobalFrame(elem) === this._globalFrame);
         if (index === -1) {
+          var postMediaList = this._timeKeeper.getMediaFromFrame(this._globalFrame);
+          var mediaIdList = [];
+          for (const media of postMediaList) {
+            mediaIdList.push(media.id);
+          }
           const body = {
             type: Number(val.id.split("_")[1]),
             name: val.name,
-            media_ids: [this._media.id],
-            frame: this._mediaFrame,
+            media_ids: mediaIdList,
+            frame: this._timeKeeper.getMediaFrame(mediaIdList[0], this._globalFrame),
             version: this._version.id,
             ...values,
           };
-
-          if (this._stateMediaIds) {
-            body.media_ids = this._stateMediaIds;
-          }
-
           this._undo.post("States", body, val);
         } else {
           const state = data[index];
@@ -79,10 +82,12 @@ export class FramePanelExperimental extends TatorElement {
     });
   }
 
-  frameChange(globalFrame, mediaFrame, media) {
+  _getGlobalFrame(elem) {
+    return this._timeKeeper.getGlobalFrame("matchFrame", elem.media, elem.frame);
+  }
+
+  frameChange(globalFrame) {
     this._globalFrame = globalFrame;
-    this._mediaFrame = mediaFrame;
-    this._media = media;
     if (this._typeId && this._data) {
       const data = this._data._dataByType.get(this._typeId);
       this._updateAttributes(data);
@@ -105,13 +110,13 @@ export class FramePanelExperimental extends TatorElement {
   }
 
   _getInterpolated(data) {
-    data.sort((a, b) => a.frame - b.frame);
+    data.sort((a, b) => this._getGlobalFrame(a) - this._getGlobalFrame(b));
     const frameDiffs = data.map(
-      (elem, idx) => [Math.abs(elem.frame - this._globalframe), idx]
+      (elem, idx) => [Math.abs(this._getGlobalFrame(elem) - this._globalFrame), idx]
     );
     const nearestIdx = frameDiffs.reduce((r, a) => (a[0] < r[0] ? a : r))[1];
     let beforeIdx, afterIdx;
-    const frameDiff = data[nearestIdx].frame - this._globalFrame;
+    const frameDiff = this._getGlobalFrame(data[nearestIdx]) - this._globalFrame;
     if (frameDiff < 0) {
       beforeIdx = nearestIdx;
       afterIdx = Math.min(beforeIdx + 1, data.length - 1);
@@ -129,7 +134,6 @@ export class FramePanelExperimental extends TatorElement {
         attrs = data[beforeIdx].attributes;
         id = data[beforeIdx].id;
         break;
-      //TODO: Implement other interpolation methods
     }
     return {attributes: attrs, id: id};
   }

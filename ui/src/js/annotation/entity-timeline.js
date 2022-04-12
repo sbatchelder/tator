@@ -182,10 +182,15 @@ export class EntityTimeline extends BaseTimeline {
             inVideoCheckAttr: inVideoCheckAttr,
           });
         }
-        else if (startFrameAttrList.length > 1 &&
+        else if (
+          (startFrameAttrList.length > 1 &&
           endFrameAttrList.length > 1 &&
           startFrameAttrList.length == endFrameAttrList.length &&
-          startFrameAttrList.length == rangeList.length) {
+          (startFrameAttrList.length + startUTCAttrList.length) == rangeList.length) ||
+          (startUTCAttrList.length > 1 &&
+          endUTCAttrList.length > 1 &&
+          startUTCAttrList.length == endUTCAttrList.length &&
+          (startFrameAttrList.length + startUTCAttrList.length) == rangeList.length)) {
 
           rangeList.sort(function(a, b) {
               if (a.order < b.order) {
@@ -200,11 +205,6 @@ export class EntityTimeline extends BaseTimeline {
 
           for (const rangeInfo of rangeList) {
             const rangeTokens = rangeInfo.data.split('|');
-
-            if (rangeTokens.length < 2 && rangeTokens.length > 3) {
-              console.error("Incorrect datatype setup with attr_style_range interpolation.")
-              break;
-            }
 
             if (mode == "frame") {
               startFrameAttr = rangeTokens[0];
@@ -226,14 +226,27 @@ export class EntityTimeline extends BaseTimeline {
               }
             }
 
-            if (!startFrameAttrList.includes(startFrameAttr)) {
-              console.error("Incorrect datatype setup with attr_style_range interpolation.")
-              break;
-            }
+            if (mode == "frame") {
+              if (!startFrameAttrList.includes(startFrameAttr)) {
+                console.error("Incorrect datatype setup with attr_style_range interpolation.")
+                break;
+              }
 
-            if (!endFrameAttrList.includes(endFrameAttr)) {
-              console.error("Incorrect datatype setup with attr_style_range interpolation.")
-              break;
+              if (!endFrameAttrList.includes(endFrameAttr)) {
+                console.error("Incorrect datatype setup with attr_style_range interpolation.")
+                break;
+              }
+            }
+            else if (mode == "utc") {
+              if (!startUTCAttrList.includes(startUTCAttr)) {
+                console.error("Incorrect datatype setup with attr_style_range interpolation.")
+                break;
+              }
+
+              if (!endUTCAttrList.includes(endUTCAttr)) {
+                console.error("Incorrect datatype setup with attr_style_range interpolation.")
+                break;
+              }
             }
 
             this._attrStyleRangeTypes.push({
@@ -352,45 +365,43 @@ export class EntityTimeline extends BaseTimeline {
           // #TODO This is a temporary fix until display_timeline is the nominal method
           //       Typically, the first conditional would check if style exists and the
           //       next would be attrType.style == "display_timeline"
-          else if (attrType.dtype == "float") {
-            if (attrType.dtype == "float") {
-              // Display this attribute as a numerical graph.
-              // Normalize the data because the graph domain is from 0 to 1.
-              let graphData = [];
-              let maxValue = 0.0;
-              for (let data of allData) {
-                let value = data.attributes[attrType.name];
-                if (!isNaN(value)) {
-                  if (value > maxValue) {
-                    maxValue = value;
-                  }
-                  graphData.push({
-                    frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media, data.frame),
-                    value: 0.0,
-                    actualValue: value});
+          else if (attrType.dtype == "float" || attrType.dtype == "int") {
+            // Display this attribute as a numerical graph.
+            // Normalize the data because the graph domain is from 0 to 1.
+            let graphData = [];
+            let maxValue = 0.0;
+            for (let data of allData) {
+              let value = data.attributes[attrType.name];
+              if (!isNaN(value)) {
+                if (value > maxValue) {
+                  maxValue = value;
                 }
+                graphData.push({
+                  frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media, data.frame),
+                  value: 0.0,
+                  actualValue: value});
+              }
+            }
+
+            // If there's data then add it to the plot dataset
+            // #TODO Might need to handle negative numbers
+            // #TODO Use min/max values defined by the attribute type if available
+            if (graphData.length > 0) {
+
+              for (let idx = 0; idx < graphData.length; idx++) {
+                graphData[idx].value = graphData[idx].actualValue / maxValue;
               }
 
-              // If there's data then add it to the plot dataset
-              // #TODO Might need to handle negative numbers
-              // #TODO Use min/max values defined by the attribute type if available
-              if (graphData.length > 0) {
+              // Add a point at the last frame to draw the state all the way to the end
+              // #TODO Not sure if this is needed
+              graphData.sort((a,b) => {return a.frame - b.frame});
+              graphData.push({...graphData[graphData.length - 1]});
+              graphData[graphData.length - 1].frame = this._maxFrame;
 
-                for (let idx = 0; idx < graphData.length; idx++) {
-                  graphData[idx].value = graphData[idx].actualValue / maxValue;
-                }
-
-                // Add a point at the last frame to draw the state all the way to the end
-                // #TODO Not sure if this is needed
-                graphData.sort((a,b) => {return a.frame - b.frame});
-                graphData.push({...graphData[graphData.length - 1]});
-                graphData[graphData.length - 1].frame = this._maxFrame;
-
-                this._numericalData.push({
-                  name: `${attrType.name} (Max: ${maxValue.toFixed(2)})`,
-                  graphData: graphData
-                });
-              }
+              this._numericalData.push({
+                name: `${attrType.name} (Max: ${maxValue.toFixed(2)})`,
+                graphData: graphData
+              });
             }
           }
         }

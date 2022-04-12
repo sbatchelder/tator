@@ -662,7 +662,7 @@ export class VideoSegmentSelector extends BaseTimeline {
     label.style.hidden = true;
 
     var wrapperDiv = document.createElement("div");
-    wrapperDiv.setAttribute("class", "px-2 py-1 d-flex flex-grow flex-items-center flex-justify-center");
+    wrapperDiv.setAttribute("class", "annotation-canvas-overlay-menu-back px-2 py-1 d-flex flex-grow flex-items-center flex-justify-center");
     this._controlsDiv.appendChild(wrapperDiv);
 
     var label = document.createElement("span");
@@ -726,7 +726,7 @@ export class VideoSegmentSelector extends BaseTimeline {
   }
 
   displayPlayWindowControls(top, left) {
-    this._controlsDiv.style.top = `${top - 200}px`;
+    this._controlsDiv.style.top = `${top - 210}px`;
     this._controlsDiv.style.left = `${left - 80}px`;
     this._controlsDiv.style.display = "flex";
   }

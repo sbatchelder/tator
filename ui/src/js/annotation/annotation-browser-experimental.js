@@ -6,9 +6,10 @@ export class AnnotationBrowserExperimental extends TatorElement {
 
     this._panels = document.createElement("div");
     this._panels.setAttribute("class", "annotation__panels py-3 px-3");
+    this._panels.style.width = "500px";
     this._shadow.appendChild(this._panels);
 
-    this._media = document.createElement("media-panel");
+    this._media = document.createElement("media-panel-experimental");
     this._panels.appendChild(this._media);
 
     this._framePanels = {};
@@ -21,12 +22,18 @@ export class AnnotationBrowserExperimental extends TatorElement {
     });
   }
 
-  init(dataTypes, version, stateMediaIds, isVideo) {
+  /**
+   * @precondition timeKeeper must have been set
+   * @precondition undo must have been set
+   * @precondition annotationData
+   */
+  init(dataTypes, version, isVideo) {
     this._version = version;
     this._media.dataTypes = dataTypes;
     for (const dataType of dataTypes) {
       if (dataType.visible) {
-        const entity = document.createElement("entity-browser");
+        const entity = document.createElement("entity-browser-experimental");
+        entity.timeKeeper = this._timeKeeper;
         entity.dataType = dataType;
         entity.canvas = this._canvas;
         entity.noFrames = !isVideo;
@@ -60,12 +67,7 @@ export class AnnotationBrowserExperimental extends TatorElement {
       if (isFrameState && isInterpolated) {
         if (dataType.interpolation === "latest"){
           const frame = document.createElement("frame-panel-experimental");
-          frame.setAttribute("media-id", this._mediaId);
-
-          if (stateMediaIds) {
-            frame.stateMediaIds = stateMediaIds;
-          }
-
+          frame.timeKeeper = this._timeKeeper;
           frame.undoBuffer = this._undo;
           frame.annotationData = this._data;
           frame.version = this._version;
@@ -86,6 +88,10 @@ export class AnnotationBrowserExperimental extends TatorElement {
         this._entityPanels[typeId].selectEntityOnUpdate(entityId);
       }
     }
+  }
+
+  set timeKeeper(val) {
+    this._timeKeeper = val;
   }
 
   set canvas(val) {
@@ -147,12 +153,12 @@ export class AnnotationBrowserExperimental extends TatorElement {
     }
   }
 
-  frameChange(globalFrame, mediaFrame, media) {
+  frameChange(globalFrame) {
     for (const typeId in this._framePanels) {
-      this._framePanels[typeId].frameChange(globalFrame, mediaFrame, media);
+      this._framePanels[typeId].frameChange(globalFrame);
     }
     for (const typeId in this._entityPanels) {
-      this._entityPanels[typeId].frameChange(frame);
+      this._entityPanels[typeId].frameChange(globalFrame);
     }
   }
 
