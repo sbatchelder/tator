@@ -35,6 +35,7 @@ export class EntityTimeline extends BaseTimeline {
     this._focusTimelineDiv.style.display = "none";
 
     // Redraw whenever there's a resize
+    this._selectedDataId = -1;
     this._stateData = [];
     this._numericalData = [];
     window.addEventListener("resize", this._updateSvgData());
@@ -331,14 +332,17 @@ export class EntityTimeline extends BaseTimeline {
             for (let data of allData) {
               let value = data.attributes[attrType.name];
               let graphValue;
+              let tatorId;
               if (!value) {
                 value = false;
                 graphValue = 0.0;
               }
               else {
+                tatorId = data.id;
                 graphValue = 1.0;
               }
               graphData.push({
+                tatorId: tatorId,
                 frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media, data.frame),
                 value: graphValue,
                 actualValue: value});
@@ -377,6 +381,7 @@ export class EntityTimeline extends BaseTimeline {
                   maxValue = value;
                 }
                 graphData.push({
+                  tatorId: data.id,
                   frame: this._timeKeeper.getGlobalFrame("matchFrame", data.media, data.frame),
                   value: 0.0,
                   actualValue: value});
@@ -469,8 +474,16 @@ export class EntityTimeline extends BaseTimeline {
 
         if (startFrame > -1 && endFrame > -1 && startFrame <= endFrame) {
           // Save the graphData to the state data list
-          graphData.push({frame: startFrame, value: 1.0, actualValue: true});
-          graphData.push({frame: endFrame, value: 0.0, actualValue: false});
+          graphData.push({
+            tatorId: data.id,
+            frame: startFrame,
+            value: 1.0,
+            actualValue: true});
+          graphData.push({
+            tatorId: data.id,
+            frame: endFrame,
+            value: 0.0,
+            actualValue: false});
         }
       }
 
@@ -524,6 +537,10 @@ export class EntityTimeline extends BaseTimeline {
     var that = this;
     if (isNaN(this._maxFrame)) {
       return;
+    }
+
+    if (this._selectedDataId != null) {
+
     }
 
     this._mainLineHeight = 30;
@@ -582,7 +599,7 @@ export class EntityTimeline extends BaseTimeline {
 
     var mainStateDataset = this._stateData.map(d => Object.assign({
       clipId: this._d3UID(),
-      pathId: this._d3UID(),
+      pathId: this._d3UID()
     }, d));
 
     const gState = this._mainSvg.append("g")
@@ -612,7 +629,14 @@ export class EntityTimeline extends BaseTimeline {
       .selectAll("use")
       .data(d => new Array(1).fill(d))
       .join("use")
-        .attr("fill", (d, i) => "#797991")
+        .attr("fill", (d, i) => {
+          if (d.graphData[i].tatorId == this._selectedDataId) {
+            return "#ffffff";
+          }
+          else {
+            return "#797991";
+          }
+        })
         .attr("transform", (d, i) => `translate(0,${(i + 1) * this._mainStep})`)
         .attr("xlink:href", d => d.pathId.href);
 
@@ -1168,8 +1192,14 @@ export class EntityTimeline extends BaseTimeline {
   /**
    * #TODO Implement in the future. This will highlight a particular region
    */
-  selectData(data) {
-    return;
+  selectEntity(data) {
+    //this._selectedDataId = data.id;
+    //this.redraw();
+  }
+
+  selectNone() {
+    //this._selectedDataId = -1;
+    //this.redraw();
   }
 
   /**

@@ -69,7 +69,7 @@ export class AnnotationPageExperimental extends TatorPage {
     settingsDiv.appendChild(this._settings);
 
     this._main = document.createElement("main");
-    this._main.setAttribute("class", "d-flex px-3");
+    this._main.setAttribute("class", "d-flex");
     this._shadow.appendChild(this._main);
 
     this._versionDialog = document.createElement("version-dialog");
