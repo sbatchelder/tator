@@ -42,12 +42,12 @@ export class MediaTimelineDialog extends ModalDialog {
     outerWrapper.appendChild(wrapper);
 
     var span = document.createElement("span");
-    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold mr-2 flex-items-center");
+    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold flex-items-center");
     span.textContent = "ID:"
     wrapper.appendChild(span);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-gray px-2 flex-items-center");
+    span.setAttribute("class", "f2 text-gray px-1 flex-items-center");
     span.textContent = `${parentMedia.id}`;
     wrapper.appendChild(span);
 
@@ -56,12 +56,12 @@ export class MediaTimelineDialog extends ModalDialog {
     outerWrapper.appendChild(wrapper);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold mr-2 flex-items-center");
+    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold flex-items-center");
     span.textContent = "Name:"
     wrapper.appendChild(span);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-gray px-2 flex-items-center");
+    span.setAttribute("class", "f2 text-gray px-1 flex-items-center");
     span.textContent = `${parentMedia.name}`;
     wrapper.appendChild(span);
 
@@ -70,12 +70,12 @@ export class MediaTimelineDialog extends ModalDialog {
     outerWrapper.appendChild(wrapper);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold mr-2 flex-items-center");
+    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold flex-items-center");
     span.textContent = "Global FPS:"
     wrapper.appendChild(span);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-gray px-2 flex-items-center");
+    span.setAttribute("class", "f2 text-gray px-1 flex-items-center");
     span.textContent = `${parentMedia.fps}`;
     wrapper.appendChild(span);
 
@@ -84,12 +84,12 @@ export class MediaTimelineDialog extends ModalDialog {
     outerWrapper.appendChild(wrapper);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold mr-2 flex-items-center");
-    span.textContent = "Camera(s):"
+    span.setAttribute("class", "f2 text-left text-gray text-uppercase text-semibold flex-items-center");
+    span.textContent = "Cameras:"
     wrapper.appendChild(span);
 
     span = document.createElement("span");
-    span.setAttribute("class", "f2 text-gray px-2 flex-items-center");
+    span.setAttribute("class", "f2 text-gray px-1 flex-items-center");
     span.textContent = `${this._timeKeeper.getChannelCount()}`;
     wrapper.appendChild(span);
   }

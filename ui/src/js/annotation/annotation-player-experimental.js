@@ -975,7 +975,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._mediaInfo = val;
     const dims = [val.width, val.height];
     this._fps = val.fps;
-    this._totalTime.textContent = "/ " + this._frameToTime(val.num_frames);
+    this._totalTime.textContent = "/ " + this._frameToTime(this._timeKeeper.getNumberFrames());
     this._totalTime.style.width = 10 * (this._totalTime.textContent.length - 1) + 5 + "px";
 
     this._video.loadFromVideoObject(val, this._mediaType, this._quality, null, null, null, this._videoHeightPadObject, this._seekQuality, this._scrubQuality)
@@ -1236,8 +1236,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
       windowSize: windowSize,
       fps: initMedia.fps
     };
-
-    this._totalTime.textContent = "/ " + this._frameToTime(this._timeKeeper.getNumberFrames());
   }
 
   /**
@@ -1787,8 +1785,13 @@ export class AnnotationPlayerExperimental extends TatorElement {
     return this._video.gotoFrame(globalFrame, true);
   }
 
+  selectTimelineData(data) {
+    //this._entityTimeline.selectEntity(data); #TODO
+  }
+
   selectNone() {
     this._video.selectNone();
+    //this._entityTimeline.selectNone(); #TODO
   }
 
   selectLocalization(loc, skipAnimation, muteOthers, skipGoToFrame) {
