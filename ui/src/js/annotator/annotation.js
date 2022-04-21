@@ -2649,6 +2649,10 @@ export class AnnotationCanvas extends TatorElement
 
   mouseOverHandler(mouseEvent)
   {
+    if (this._playing)
+    {
+      return;
+    }
     var that = this;
     var location = this.scaleToViewport([mouseEvent.offsetX, mouseEvent.offsetY]);
     var relativeVPLocation = [location[0]/this._dims[0], location[1]/this._dims[1]];
@@ -4452,11 +4456,15 @@ export class AnnotationCanvas extends TatorElement
     // #TODO Consider moving this outside of this function into its own
     //       routine that is called when a frame change occurs.
     if (this.currentFrame() != this._contextMenuFrame)
-    {
-      this._contextMenuFrame = frameIdx;
-      this._contextMenuTrack.hideMenu();
-      this._contextMenuLoc.hideMenu();
-      this._contextMenuNone.hideMenu();
+    {    
+      // Dont' call this stuff in playing mode.
+      if (this._playing != true)
+      {
+        this._contextMenuFrame = frameIdx;
+        this._contextMenuTrack.hideMenu();
+        this._contextMenuLoc.hideMenu();
+        this._contextMenuNone.hideMenu();
+      }
     }
 
     if (this._clipboard.cutObject() && this._clipboard.cutObject().frame != frameIdx)
