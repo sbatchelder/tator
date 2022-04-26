@@ -242,7 +242,7 @@ export class EntityBrowserExperimental extends TatorElement {
         this._selectors[group] = selector;
 
         if (!this._dataType.isTLState) {
-          const attributes = document.createElement("attribute-panel");
+          const attributes = document.createElement("attribute-panel-experimental");
           attributes.dataType = evt.detail.typeObj;
           if (typeof this._permission !== "undefined") {
             attributes.permission = this._permission;

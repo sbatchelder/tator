@@ -12,7 +12,7 @@ export class MediaPanelExperimental extends TatorElement {
     this._name.setAttribute("class", "py-3 text-semibold css-truncate");
     div.appendChild(this._name);
 
-    this._attrs = document.createElement("attribute-panel");
+    this._attrs = document.createElement("attribute-panel-experimental");
 
     div.appendChild(this._attrs); // TODO: Fill this in with attribute data
 

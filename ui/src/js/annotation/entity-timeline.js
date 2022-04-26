@@ -104,8 +104,8 @@ export class EntityTimeline extends BaseTimeline {
         var endUTCAttr;
         var startFrameAttr;
         var endFrameAttr;
-        var startFrameCheckAttr;
-        var endFrameCheckAttr;
+        var startInVideoCheckAttr;
+        var endInVideoCheckAttr;
         var inVideoCheckAttr;
         var inVideoCheckAttrList = [];
         var startUTCAttrList = [];
@@ -113,6 +113,7 @@ export class EntityTimeline extends BaseTimeline {
         var startFrameAttrList = [];
         var endFrameAttrList = [];
         var rangeList = [];
+        var rangeUtcList = [];
         var mode;
 
         for (const attr of dataType.attribute_types) {
@@ -131,11 +132,11 @@ export class EntityTimeline extends BaseTimeline {
               mode = "frame";
               endFrameAttrList.push(name);
             }
-            else if (styleOptions.includes("start_frame_check")) {
-              startFrameCheckAttr = name;
+            else if (styleOptions.includes("start_frame_check") || styleOptions.includes("start_in_video_check")) {
+              startInVideoCheckAttr = name;
             }
-            else if (styleOptions.includes("end_frame_check")) {
-              endFrameCheckAttr = name;
+            else if (styleOptions.includes("end_frame_check") || styleOptions.includes("end_in_video_check")) {
+              endInVideoCheckAttr = name;
             }
             else if (styleOptions.includes("start_utc")) {
               mode = "utc";
@@ -151,23 +152,18 @@ export class EntityTimeline extends BaseTimeline {
             else if (styleOptions.includes("range_set")) {
               rangeList.push({name: name, data: attr["default"], order: attr["order"]});
             }
+            else if (styleOptions.includes("range_set_utc")) {
+              rangeUtcList.push({name: name, data: attr["default"], order: attr["order"]});
+            }
           }
         }
 
         if (startFrameAttrList.length == 1 && endFrameAttrList.length == 1) {
 
-          if (mode == "frame") {
-            startFrameAttr = startFrameAttrList[0];
-            endFrameAttr = endFrameAttrList[0];
-            startUTCAttr = null;
-            endUTCAttr = null;
-          }
-          else if (mode == "utc") {
-            startFrameAttr = null;
-            endFrameAttr = null;
-            startUTCAttr = startUTCAttrList[0];
-            endUTCAttr = endUTCAttrList[0];
-          }
+          startFrameAttr = startFrameAttrList[0];
+          endFrameAttr = endFrameAttrList[0];
+          startUTCAttr = null;
+          endUTCAttr = null;
           inVideoCheckAttr = null;
 
           this._attrStyleRangeTypes.push({
@@ -178,20 +174,79 @@ export class EntityTimeline extends BaseTimeline {
             endUTCAttr: endUTCAttr,
             startFrameAttr: startFrameAttr,
             endFrameAttr: endFrameAttr,
-            startFrameCheckAttr: startFrameCheckAttr,
-            endFrameCheckAttr: endFrameCheckAttr,
+            startInVideoCheckAttr: startInVideoCheckAttr,
+            endInVideoCheckAttr: endInVideoCheckAttr,
+            inVideoCheckAttr: inVideoCheckAttr,
+          });
+        }
+        else if (startUTCAttrList.length == 1 && endUTCAttrList.length == 1) {
+
+          startFrameAttr = null;
+          endFrameAttr = null;
+          startUTCAttr = startUTCAttrList[0];
+          endUTCAttr = endUTCAttrList[0];
+          inVideoCheckAttr = null;
+
+          this._attrStyleRangeTypes.push({
+            dataType: dataType,
+            name: dataType.name,
+            mode: mode,
+            startUTCAttr: startUTCAttr,
+            endUTCAttr: endUTCAttr,
+            startFrameAttr: startFrameAttr,
+            endFrameAttr: endFrameAttr,
+            startInVideoCheckAttr: startInVideoCheckAttr,
+            endInVideoCheckAttr: endInVideoCheckAttr,
             inVideoCheckAttr: inVideoCheckAttr,
           });
         }
         else if (
-          (startFrameAttrList.length > 1 &&
-          endFrameAttrList.length > 1 &&
-          startFrameAttrList.length == endFrameAttrList.length &&
-          (startFrameAttrList.length + startUTCAttrList.length) == rangeList.length) ||
-          (startUTCAttrList.length > 1 &&
+          startUTCAttrList.length > 1 &&
           endUTCAttrList.length > 1 &&
           startUTCAttrList.length == endUTCAttrList.length &&
-          (startFrameAttrList.length + startUTCAttrList.length) == rangeList.length)) {
+          rangeUtcList.length == startUTCAttrList.length) {
+
+          rangeUtcList.sort(function(a, b) {
+              if (a.order < b.order) {
+                return 1;
+              }
+              if (a.order > b.order) {
+                return -1;
+              }
+              return 0;
+            }
+          );
+          for (const rangeInfo of rangeUtcList) {
+            const rangeTokens = rangeInfo.data.split('|');
+            if (rangeTokens.length != 5) {
+              console.error("Incorrect datatype setup with attr_style_range interpolation.")
+              break;
+            }
+
+            startUTCAttr = rangeTokens[0];
+            endUTCAttr = rangeTokens[1];
+            inVideoCheckAttr = rangeTokens[2];
+            startInVideoCheckAttr = rangeTokens[3];
+            endInVideoCheckAttr = rangeTokens[4];
+
+            this._attrStyleRangeTypes.push({
+              dataType: dataType,
+              name: rangeInfo.name,
+              mode: mode,
+              startUTCAttr: startUTCAttr,
+              endUTCAttr: endUTCAttr,
+              startFrameAttr: startFrameAttr,
+              endFrameAttr: endFrameAttr,
+              startInVideoCheckAttr: startInVideoCheckAttr,
+              endInVideoCheckAttr: endInVideoCheckAttr,
+              inVideoCheckAttr: inVideoCheckAttr
+            });
+          }
+        }
+        else if (startFrameAttrList.length > 1 &&
+          endFrameAttrList.length > 1 &&
+          startFrameAttrList.length == endFrameAttrList.length &&
+          startFrameAttrList.length == rangeList.length) {
 
           rangeList.sort(function(a, b) {
               if (a.order < b.order) {
@@ -206,60 +261,25 @@ export class EntityTimeline extends BaseTimeline {
 
           for (const rangeInfo of rangeList) {
             const rangeTokens = rangeInfo.data.split('|');
-
-            if (mode == "frame") {
-              startFrameAttr = rangeTokens[0];
-              endFrameAttr = rangeTokens[1];
-              startUTCAttr = null;
-              endUTCAttr = null;
-            }
-            else if (mode == "utc") {
-              startUTCAttr = rangeTokens[0];
-              endUTCAttr = rangeTokens[1];
-              startFrameAttr = null;
-              endFrameAttr = null;
-            }
-            inVideoCheckAttr = null;
-
-            if (rangeTokens.length == 3) {
-              if (inVideoCheckAttrList.includes(rangeTokens[2])) {
-                inVideoCheckAttr = rangeTokens[2];
-              }
+            if (rangeTokens.length != 3) {
+              console.error("Incorrect datatype setup with attr_style_range interpolation.")
+              break;
             }
 
-            if (mode == "frame") {
-              if (!startFrameAttrList.includes(startFrameAttr)) {
-                console.error("Incorrect datatype setup with attr_style_range interpolation.")
-                break;
-              }
-
-              if (!endFrameAttrList.includes(endFrameAttr)) {
-                console.error("Incorrect datatype setup with attr_style_range interpolation.")
-                break;
-              }
-            }
-            else if (mode == "utc") {
-              if (!startUTCAttrList.includes(startUTCAttr)) {
-                console.error("Incorrect datatype setup with attr_style_range interpolation.")
-                break;
-              }
-
-              if (!endUTCAttrList.includes(endUTCAttr)) {
-                console.error("Incorrect datatype setup with attr_style_range interpolation.")
-                break;
-              }
-            }
+            startFrameAttr = rangeTokens[0];
+            endFrameAttr = rangeTokens[1];
+            inVideoCheckAttr = rangeTokens[2];
 
             this._attrStyleRangeTypes.push({
               dataType: dataType,
               name: rangeInfo.name,
               mode: mode,
-              startUTCAttr: startUTCAttr,
-              endUTCAttr: endUTCAttr,
+              startUTCAttr: null,
+              endUTCAttr: null,
               startFrameAttr: startFrameAttr,
               endFrameAttr: endFrameAttr,
-              startFrameCheckAttr: null,
-              endFrameCheckAttr: null,
+              startInVideoCheckAttr: null,
+              endInVideoCheckAttr: null,
               inVideoCheckAttr: inVideoCheckAttr
             });
           }
@@ -433,35 +453,28 @@ export class EntityTimeline extends BaseTimeline {
           endFrame = data.attributes[attrTypeInfo.endFrameAttr];
         }
         else if (attrTypeInfo.mode == "utc") {
-          startFrame = this._timeKeeper.getGlobalFrame("utc", data.media, data.attributes[attrTypeInfo.startUTCAttr]);
-          endFrame = this._timeKeeper.getGlobalFrame("utc", data.media, data.attributes[attrTypeInfo.endUTCAttr]);
+          startFrame = this._timeKeeper.getGlobalFrame("utc", [], data.attributes[attrTypeInfo.startUTCAttr]);
+          endFrame = this._timeKeeper.getGlobalFrame("utc", [], data.attributes[attrTypeInfo.endUTCAttr]);
         }
 
-        if (startFrame != -1) {
-          startFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media, startFrame);
-        }
-        if (endFrame != -1) {
-          endFrame = this._timeKeeper.getGlobalFrame("matchFrame", data.media, endFrame);
-        }
-
-        if (attrTypeInfo.startFrameCheckAttr && attrTypeInfo.endFrameCheckAttr) {
+        if (attrTypeInfo.startInVideoCheckAttr && attrTypeInfo.endInVideoCheckAttr) {
           // Start frame check and end frame check attributes exist.
           // #TODO This capability may go away in lieu of just using -1 values.
-          if (data.attributes[attrTypeInfo.startFrameCheckAttr] === false) {
-            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media);
+          if (data.attributes[attrTypeInfo.startInVideoCheckAttr] === false) {
+            startFrame = 0;
           }
-          if (data.attributes[attrTypeInfo.endFrameCheckAttr] === false) {
-            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media);
+          if (data.attributes[attrTypeInfo.endInVideoCheckAttr] === false) {
+            endFrame = this._timeKeeper.getLastGlobalFrame();
           }
         }
         else {
           // Start/end frame check attributes don't exist.
           // Just assume if there's a -1, it's going to stretch
           if (startFrame == -1) {
-            startFrame = this._timeKeeper.getGlobalFrame("mediaStart", data.media);
+            startFrame = 0;
           }
           if (endFrame == -1) {
-            endFrame = this._timeKeeper.getGlobalFrame("mediaEnd", data.media);
+            endFrame = this._timeKeeper.getLastGlobalFrame();
           }
         }
 

@@ -441,6 +441,7 @@ export class VideoCanvas extends AnnotationCanvas {
 
   construct_demuxer(idx, resolution) 
   {
+    var that = this;
     let use_hls = (this._videoObject.media_files.streaming[0].hls ? true : false);
     let searchParams = new URLSearchParams(window.location.search);
     console.info(`VideoDecoder: ${'VideoDecoder' in window}; Secure Context: ${window.isSecureContext}`);
@@ -483,7 +484,10 @@ export class VideoCanvas extends AnnotationCanvas {
           }
           this.dispatchEvent(new CustomEvent("onDemandDetail",
                                             {composed: true,
-                                             detail: {"ranges": ranges_list}}));
+                                             detail: {
+                                               "ranges": ranges_list,
+                                               "readyPercentage": that._onDemandReadyPercentage
+                                            }}));
         };
       }
       return p;

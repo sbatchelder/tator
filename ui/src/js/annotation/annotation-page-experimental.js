@@ -178,6 +178,7 @@ export class AnnotationPageExperimental extends TatorPage {
                !('streaming' in data.media_files) &&
                !('layout' in data.media_files) &&
                !('image' in data.media_files) &&
+               !('concat' in data.media_files) &&
                !('live' in data.media_files)))
           {
             this._loading.style.display = "none";
@@ -353,6 +354,7 @@ export class AnnotationPageExperimental extends TatorPage {
     this._setupTimeKeeper(pageMedia).then(() => {
 
       // Next, set up the video player.
+      this._player.disableSummaryMode(); // #TODO Just disable the summary mode for now
       this._player.timeKeeper = this._timeKeeper;
       this._player.mediaInfo = pageMedia;
       this._setupInitHandlers(this._player);
@@ -369,9 +371,13 @@ export class AnnotationPageExperimental extends TatorPage {
         this._browser.mediaType = this._pageMediaType;
         this._browser.init(this._dataTypes, this._version, true);
 
-        // Other dialog window setup
-        this._videoSettingsDialog.mode("single", [pageMedia]);
+        // Setup the media timeline dialog
         this._mediaTimelineDialog.timeKeeper = this._timeKeeper;
+
+        // Use one of the videos to define the video settings
+        var videoSettingsMedia = this._timeKeeper.getMediaFromFrame(0)[0];
+        this._videoSettingsDialog.mode("single", [videoSettingsMedia]);
+        this._player.setPlaybackQualities(videoSettingsMedia);
       });
     });
 
@@ -382,14 +388,22 @@ export class AnnotationPageExperimental extends TatorPage {
    * @param {Tator.Media} parentMedia
    */
   _setupTimeKeeper(parentMedia) {
+
+    // #TODO Suport multis
     this._mediaList = [];
 
     var donePromise = new Promise(resolve => {
-      const searchParams = new URLSearchParams(window.location.search);
-      const yo = searchParams.has("yo");
-      if (yo) {
-        var mediaIds = searchParams.getAll("yo");
+
+      if (parentMedia.media_files.concat != null) {
+        // Appended videos are stored in the parentMedia.media_files.concat property
+        // Single camera version
+        var mediaIds = [];
+        var timestampOffsetMap = {};
         var mediaIdStr = "";
+        for (const concatInfo of parentMedia.media_files.concat) {
+          mediaIds.push(concatInfo.id);
+          timestampOffsetMap[concatInfo.id] = concatInfo.timestampOffset;
+        }
         for (let idx = 0; idx < mediaIds.length; idx++) {
           mediaIdStr += mediaIds[idx];
           if (idx < mediaIds.length - 1) {
@@ -408,13 +422,18 @@ export class AnnotationPageExperimental extends TatorPage {
         .then(response => response.json())
         .then(mediaList => {
           this._mediaList = mediaList;
-          this._timeKeeper.init(parentMedia, [this._mediaList], parentMedia.fps);
+          var mediaInfoList = [];
+          for (const media of this._mediaList) {
+            mediaInfoList.push({media: media, timestampOffset: timestampOffsetMap[media.id]})
+          }
+          this._timeKeeper.init(parentMedia, [mediaInfoList], parentMedia.fps, "timestampOffset");
           resolve();
         });
       }
       else {
+        // Normal single player
         this._mediaList.push(parentMedia);
-        this._timeKeeper.init(parentMedia, [this._mediaList], parentMedia.fps);
+        this._timeKeeper.init(parentMedia, [{media: parentMedia, timestampOffset: 0}], parentMedia.fps, "name");
         resolve();
       }
     });
@@ -658,7 +677,6 @@ export class AnnotationPageExperimental extends TatorPage {
     });
 
     this._player.addEventListener("openMediaTimelineInfo", () => {
-      this._mediaTimelineDialog.setupDisplay();
       this._mediaTimelineDialog.setAttribute("is-open", "");
       this.setAttribute("has-open-modal", "");
       document.body.classList.add("shortcuts-disabled");
@@ -862,7 +880,7 @@ export class AnnotationPageExperimental extends TatorPage {
           this._saves = {};
 
           for (const dataType of ["poly", "box", "line", "dot"]) {
-            const save = document.createElement("save-dialog");
+            const save = document.createElement("save-dialog-experimental");
             const dataTypes = localizationTypes.filter(type => type.dtype == dataType
                                                                && type.visible
                                                                && type.drawable);
@@ -897,7 +915,7 @@ export class AnnotationPageExperimental extends TatorPage {
               if (defaultType === null) {
                 defaultType = dataTypes[0];
               }
-              save.init(projectId, mediaId, dataTypes, defaultType, this._undo, this._version, favorites);
+              save.init(projectId, this._timeKeeper, dataTypes, defaultType, this._undo, this._version, favorites);
               this._settings.setAttribute("version", this._version.id);
               this._main.appendChild(save);
               this._saves[dataType] = save;
@@ -914,8 +932,8 @@ export class AnnotationPageExperimental extends TatorPage {
           }
 
           for (const dataType of stateTypes) {
-            const save = document.createElement("save-dialog");
-            save.init(projectId, mediaId, [dataType], dataType, this._undo, this._version, favorites);
+            const save = document.createElement("save-dialog-experimental");
+            save.init(projectId, this._timeKeeper, [dataType], dataType, this._undo, this._version, favorites);
             this._settings.setAttribute("version", this._version.id);
             this._main.appendChild(save);
             this._saves[dataType.id] = save;
@@ -1075,7 +1093,6 @@ export class AnnotationPageExperimental extends TatorPage {
             var save = this._getSave(objDescription);
             // Because we can be annotating multiple media_ids, set the dialog save
             // to the id the draw event came from
-            save._mediaId = evt.detail.mediaId;
             if (metaMode && save.metaMode)
             {
               save.saveObject(requestObj, save.metaCache);

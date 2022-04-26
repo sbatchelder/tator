@@ -295,7 +295,14 @@ export class MediaCard extends TatorElement {
       if(typeof(val.project) == "undefined") {
         project = val.project_id;
       }
-      var uri = `/${project}/annotation/${val.id}?${this._mediaParams.toString()}`;
+
+      var uri;
+      if (this._media.name.toLowerCase().includes(".concat")) {
+        uri = `/${project}/annotation-experimental/${val.id}?${this._mediaParams.toString()}`;
+      }
+      else {
+        uri = `/${project}/annotation/${val.id}?${this._mediaParams.toString()}`;
+      }
       this._name.setAttribute("href", uri);
       this._link.setAttribute("href", uri);
       this._name.style.opacity = 1;

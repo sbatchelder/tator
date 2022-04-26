@@ -20,16 +20,12 @@ export class MediaTimelineDialog extends ModalDialog {
     this._init();
   }
 
-  _setupMainMediaInfo(parentDiv) {
+  _setupMainMediaInfo(headerDiv) {
 
     const parentMedia = this._timeKeeper.getParentMedia();
 
-    var headerDiv = document.createElement("div");
-    headerDiv.setAttribute("class", "media-timeline-dialog-header d-flex py-2 px-4 flex-grow flex-column");
-    parentDiv.appendChild(headerDiv);
-
     var parentWrapper = document.createElement("div");
-    parentWrapper.setAttribute("class", "d-flex flex-items-center h3 text-white py-1 text-uppercase");
+    parentWrapper.setAttribute("class", "d-flex flex-items-center f2 text-semibold text-white py-2 text-uppercase media-timeline-header-border px-4");
     parentWrapper.textContent = "Main Media";
     headerDiv.appendChild(parentWrapper);
 
@@ -99,14 +95,10 @@ export class MediaTimelineDialog extends ModalDialog {
     var headerDiv = document.createElement("div");
     headerDiv.setAttribute("class", "media-timeline-dialog-header d-flex py-2 px-4 flex-grow");
     parentDiv.appendChild(headerDiv);
-
-    var text = document.createElement("div");
-    text.setAttribute("class", "d-flex flex-items-center h3 text-white text-uppercase");
-    text.textContent = "Timeline"
-    headerDiv.appendChild(text);
+    this._headerDiv = headerDiv;
 
     var wrapper = document.createElement("div");
-    wrapper.setAttribute("class", "d-flex flex-items-center text-gray f2 px-2 mx-3");
+    wrapper.setAttribute("class", "d-flex flex-items-center text-gray f2 mr-6");
     headerDiv.appendChild(wrapper);
 
     this._timelineSelector = document.createElement("enum-input");
@@ -130,28 +122,28 @@ export class MediaTimelineDialog extends ModalDialog {
     this._unitsSelector.choices = choices;
     wrapper.appendChild(this._unitsSelector);
 
+    this._tableDiv = document.createElement("div");
+    parentDiv.appendChild(this._tableDiv);
+    this._setupTable();
+
     this._timelineSelector.addEventListener("change", () => {
-      this._setupTable(this._tableDiv);
+      this._setupTable();
     });
 
     this._unitsSelector.addEventListener("change", () => {
-      this._setupTable(this._tableDiv);
+      this._setupTable();
     });
-
-    this._tableDiv = document.createElement("div");
-    parentDiv.appendChild(this._tableDiv);
-    this._setupTable(this._tableDiv);
   }
 
-  _setupTable(parentTableDiv) {
-      
-    while (parentTableDiv.firstChild) {
-      parentTableDiv.removeChild(parentTableDiv.firstChild);
+  _setupTable() {
+
+    while (this._tableDiv.firstChild) {
+      this._tableDiv.removeChild(this._tableDiv.firstChild);
     }
 
     var outerDiv = document.createElement("div");
-    outerDiv.setAttribute("class", "rounded-2 my-3 px-4")
-    parentTableDiv.appendChild(outerDiv);
+    outerDiv.setAttribute("class", "media-timeline-dialog-main rounded-2 my-3 px-4")
+    this._tableDiv.appendChild(outerDiv);
 
     var tableDiv = document.createElement("div");
     tableDiv.setAttribute("class", "d-flex flex-grow");
@@ -167,22 +159,22 @@ export class MediaTimelineDialog extends ModalDialog {
 
     const trHead = document.createElement("tr");
     thead.appendChild(trHead);
-  
+
     var th = document.createElement("th");
     th.setAttribute("class", "py-2 col-4");
     th.textContent = "Segment";
     trHead.appendChild(th);
-  
+
     th = document.createElement("th");
     th.setAttribute("class", "py-2 col-2");
     th.textContent = "Start";
     trHead.appendChild(th);
-  
+
     th = document.createElement("th");
     th.setAttribute("class", "py-2 col-2");
     th.textContent = "End";
     trHead.appendChild(th);
-  
+
     th = document.createElement("th");
     th.setAttribute("class", "py-2 col-2");
     th.textContent = "Duration";
@@ -193,7 +185,7 @@ export class MediaTimelineDialog extends ModalDialog {
     var infoList = this._timeKeeper.getChannelTimeline(channelIndex);
 
     for (const info of infoList) {
-      
+
       const tbody = document.createElement("tbody");
       if (info.displayName.includes("Video Gap")) {
         tbody.setAttribute("class", "f2 text-coral text-semibold py-1");
@@ -216,11 +208,11 @@ export class MediaTimelineDialog extends ModalDialog {
         var td = document.createElement("td");
         td.textContent = `${info.globalStartFrame}`;
         tr.appendChild(td);
-  
+
         var td = document.createElement("td");
         td.textContent = `${info.globalEndFrame}`;
         tr.appendChild(td);
-  
+
         var td = document.createElement("td");
         td.textContent = `${info.globalEndFrame - info.globalStartFrame + 1} Frames`;
         tr.appendChild(td);
@@ -231,11 +223,11 @@ export class MediaTimelineDialog extends ModalDialog {
         var td = document.createElement("td");
         td.textContent = `${this._timeKeeper.getRelativeTimeFromFrame(info.globalStartFrame)}`;
         tr.appendChild(td);
-  
+
         var td = document.createElement("td");
         td.textContent = `${this._timeKeeper.getRelativeTimeFromFrame(info.globalEndFrame)}`;
         tr.appendChild(td);
-  
+
         var td = document.createElement("td");
         td.textContent = `${this._timeKeeper.getRelativeTimeFromFrame(info.globalEndFrame - info.globalStartFrame + 1)}`;
         tr.appendChild(td);
@@ -246,11 +238,11 @@ export class MediaTimelineDialog extends ModalDialog {
         var td = document.createElement("td");
         td.textContent = `${this._timeKeeper.getAbsoluteTimeFromFrame(info.globalStartFrame)}`;
         tr.appendChild(td);
-  
+
         var td = document.createElement("td");
         td.textContent = `${this._timeKeeper.getAbsoluteTimeFromFrame(info.globalEndFrame)}`;
         tr.appendChild(td);
-  
+
         var td = document.createElement("td");
         td.textContent = `${this._timeKeeper.getRelativeTimeFromFrame(info.globalEndFrame - info.globalStartFrame + 1)}`;
         tr.appendChild(td);
@@ -272,17 +264,12 @@ export class MediaTimelineDialog extends ModalDialog {
    * @precondition Must be executed after the timeKeeper has been initialized.
    */
   _init() {
-
-    this._setupMainMediaInfo(this._contentDiv);
-    var spacerDiv = document.createElement("div");
-    spacerDiv.setAttribute("class", "py-3");
-    this._contentDiv.appendChild(spacerDiv);
     this._setupTimelineInfo(this._contentDiv);
-
+    this._setupMainMediaInfo(this._headerDiv);
   }
 
   setupDisplay() {
-    this._setupTable(this._tableDiv);
+    this._setupTable();
   }
 }
 

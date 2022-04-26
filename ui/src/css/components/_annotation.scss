@@ -121,6 +121,23 @@
   overflow: hidden;
 }
 
+save-dialog-experimental {
+  box-sizing: border-box;
+  width: 600px;
+  opacity: 0;
+  overflow: initial;
+  pointer-events: none;
+  position: absolute;
+  transform: scale(0.95);
+  transition-duration: 0.25s;
+  transition-property: transform, opacity;
+  z-index: 2;
+  &.is-open {
+    opacity: 1;
+    pointer-events: initial;
+    transform: scale(1);
+  }
+}
 save-dialog {
   box-sizing: border-box;
   width: 334px;
@@ -180,6 +197,10 @@ modify-track-dialog {
       display: none;
       background-color: $color-charcoal--dark;
     }
+    attribute-panel-experimental {
+      display: none;
+      background-color: $color-charcoal--dark;
+    }
     &.is-open,
     &:hover {
       background-color: $color-charcoal--light;
@@ -189,6 +210,9 @@ modify-track-dialog {
         display: grid;
       }
       attribute-panel {
+        display: block;
+      }
+      attribute-panel-experimental {
         display: block;
       }
     }
@@ -568,6 +592,21 @@ annotation-player {
 
 .media-timeline-dialog-header {
   box-sizing: border-box;
-  background-color: #202543;
-  width: 100%;
+  background-color: $color-charcoal--medium;
+  border-bottom: 1px solid $color-charcoal--light;
+  border-top: 1px solid $color-charcoal--light;
+}
+
+.media-timeline-header-border {
+  background-color: $color-charcoal--medium-dark70;
+}
+
+.media-timeline-dialog-main {
+  background-color: $color-charcoal--medium;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.top-border {
+  border-top: 1px solid $color-charcoal--light;
 }

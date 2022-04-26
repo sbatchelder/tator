@@ -41,7 +41,7 @@ export class GlobalTimeKeeper extends HTMLElement {
       mediaInfo.globalEndFrame = globalEndFrame;
 
       // Check for temporal gap
-      if (previousGlobalEndFrame != globalStartFrame) {
+      if (((globalStartFrame - 1) - previousGlobalEndFrame) > 0) {
         channelGaps.push({
           globalStartFrame: previousGlobalEndFrame + 1,
           globalEndFrame: globalStartFrame - 1
@@ -81,7 +81,7 @@ export class GlobalTimeKeeper extends HTMLElement {
    * @param {Tator.Media} media
    * @returns {float} Start of media in seconds since epoch
    */
-  _getMediaStart(media) {
+  _getMediaStartByName(media) {
 
     let name = media.name;
 
@@ -112,21 +112,27 @@ export class GlobalTimeKeeper extends HTMLElement {
    *
    * @param {Tator.Media} parentMedia
    * @param {array} mediaChannels - Array of arrays
-   *   Each array represents a video stream/channel
+   *   Each array represents a video stream/channel/camera
+   *   Each entry in the array has the following:
+   *     {
+   *      media {Tator.Media}
+   *      timestampOffset {float}
+   *     }
    *   List of media objects to create the global timeline
    *   Assumed that the media all have the same FPS and their names are in an isoformat
    *   Also assumed there are no duplicate media objects
-   *
    * @param {float} globalFPS - FPS used for the global tracker.
+   * @param {string} appendMode - "timestampOffset"|"name"
    */
-  init(parentMedia, mediaChannels, globalFPS) {
+  init(parentMedia, mediaChannels, globalFPS, appendMode) {
 
     this._parentMedia = parentMedia;
     this._globalFPS = globalFPS;
     this._mediaMap = {};
     this._temporalGaps = [];
     this._mediaChannelMap = [];
-    this._minSecondsFromEpoch = Date.now() / 1000;
+    this._minSecondsFromEpoch = this._getMediaStartByName(parentMedia);
+
     this._channelGaps = {}; // Indexed by channel index
     this._channelTimeline = {}; // Indexed by channel index
 
@@ -140,7 +146,7 @@ export class GlobalTimeKeeper extends HTMLElement {
 
       for (let mediaIndex = 0; mediaIndex < mediaList.length; mediaIndex++) {
 
-        const media = mediaList[mediaIndex];
+        const media = mediaList[mediaIndex].media;
 
         // Verify this media's FPS is the same as the global FPS
         if (media.fps != this._globalFPS) {
@@ -148,9 +154,15 @@ export class GlobalTimeKeeper extends HTMLElement {
         }
 
         // Get the global frame start and end associated with this media and apply it to the map
-        var startTime = this._getMediaStart(media);
-        if (startTime < this._minSecondsFromEpoch) {
-          this._minSecondsFromEpoch = startTime;
+        var startTime;
+        if (appendMode == "name") {
+          startTime = this._getMediaStartByName(media);
+          if (startTime < this._minSecondsFromEpoch) {
+            this._minSecondsFromEpoch = startTime;
+          }
+        }
+        else if (appendMode == "timestampOffset") {
+          startTime = mediaList[mediaIndex].timestampOffset + this._minSecondsFromEpoch;
         }
 
         var mediaInfo = {

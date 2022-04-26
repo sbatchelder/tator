@@ -12,7 +12,7 @@ export class FramePanelExperimental extends TatorElement {
     this._name.setAttribute("class", "py-3 text-semibold");
     div.appendChild(this._name);
 
-    this._attributes = document.createElement("attribute-panel");
+    this._attributes = document.createElement("attribute-panel-experimental");
     div.appendChild(this._attributes);
   }
 

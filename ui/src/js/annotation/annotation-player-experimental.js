@@ -151,8 +151,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     var btn = document.createElement("small-svg-button");
     btn.init(
       `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="no-fill"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>`,
-      "Video Timeline Controls",
-      "video-timeline-controls-btn"
+      "Zoom Timeline Controls",
+      "zoom-timeline-controls-btn"
     );
     btn._button.classList.remove("px-2");
     settingsDiv.appendChild(btn);
@@ -182,7 +182,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoPlayWindow = btn;
     btn.addEventListener("click", () => {
       btn.blur();
-      this._timelineZoomMenu.style.display = "none";
       if (this._videoMode == "play") {
         this._setToSummaryMode();
       }
@@ -516,6 +515,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._seekQuality = null;
     this._scrubQuality = null;
     this._allowSafeMode = true;
+
+    /* #TODO Fill in later
     if (searchParams.has("playQuality")) {
       this._quality = Number(searchParams.get("playQuality"));
     }
@@ -528,6 +529,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     if (searchParams.has("safeMode")) {
       this._allowSafeMode = Number(searchParams.get("safeMode")) == 1;
     }
+    */
 
     this._videoMode = "play"; // play | summary
 
@@ -973,7 +975,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
   set mediaInfo(val) {
     this._video.mediaInfo = val;
     this._mediaInfo = val;
-    const dims = [val.width, val.height];
     this._fps = val.fps;
     this._totalTime.textContent = "/ " + this._frameToTime(this._timeKeeper.getNumberFrames());
     this._totalTime.style.width = 10 * (this._totalTime.textContent.length - 1) + 5 + "px";
@@ -1020,26 +1021,26 @@ export class AnnotationPlayerExperimental extends TatorElement {
           composed: true
         }));
       });
-    if (this._video.audio != true)
-    {
+    if (this._video.audio != true) {
       // Hide volume on videos with no audio
       this._volume_control.style.display = "none";
     }
     this._volume_control.volume = this._mediaType['default_volume'];
-    if (val.media_files && 'streaming' in val.media_files)
-    {
-      let quality_list = [];
-      for (let media_file of val.media_files["streaming"])
-      {
-        quality_list.push(media_file.resolution[0]);
-      }
-      this._qualityControl.resolutions = quality_list;
-      this._qualityControl.show();
+    if (val.media_files && 'streaming' in val.media_files) {
+      this.setPlaybackQualities(val);
     }
-    else
-    {
+    else {
       this._qualityControl.hide();
     }
+  }
+
+  setPlaybackQualities(media) {
+    let quality_list = [];
+    for (let media_file of media.media_files["streaming"]) {
+      quality_list.push(media_file.resolution[0]);
+    }
+    this._qualityControl.resolutions = quality_list;
+    this._qualityControl.show();
   }
 
   set annotationData(val) {
@@ -1108,6 +1109,16 @@ export class AnnotationPlayerExperimental extends TatorElement {
   }
 
   /**
+   * This should be done once at init. This will hide the summary UI controls and set the
+   * play window to the entire video.
+   */
+  disableSummaryMode() {
+    this._scrubControl.style.display = "none";
+    this._videoPlayWindow.style.display = "none";
+    this._summaryModeDisabled = true;
+  }
+
+  /**
    *
    * @param {integer} frame
    * @returns {boolean}
@@ -1117,6 +1128,9 @@ export class AnnotationPlayerExperimental extends TatorElement {
   }
 
   _setToSummaryMode() {
+
+    if (this._summaryModeDisabled) { return; }
+
     this._videoMode = "summary";
 
     this._slider.setAttribute("min", 0);
@@ -1190,8 +1204,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
   }
 
   _resizeHandler() {
-    this._timelineZoomMenu.style.display = "none";
-    this._videoSegmentSelector.hidePlayWindowControls();
+    this._hideCanvasMenus();
   }
 
   _setTimeControlStyle() {
@@ -1229,11 +1242,12 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._lastGlobalFrame = this._timeKeeper.getLastGlobalFrame();
     var initMedia = this._timeKeeper.getMediaFromFrame(0)[0]; // #TODO
 
+    // #TODO Change this window size thing to media.
     const windowSize = Math.floor(initMedia.num_frames / 5);
     this._playWindowInfo = {
       globalStartFrame: 0,
-      globalEndFrame: windowSize - 1,
-      windowSize: windowSize,
+      globalEndFrame: this._lastGlobalFrame,
+      windowSize: this._lastGlobalFrame,
       fps: initMedia.fps
     };
   }
@@ -1389,13 +1403,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
       return;
     }
 
-    const maxFrame = this._mediaInfo.num_frames - 1;
-    if (frame > maxFrame - 1)  // #TODO Fix in the future once video.js has been sorted out.
-    {
+    const maxFrame = this._timeKeeper.getLastGlobalFrame();
+    if (frame > maxFrame - 1) {
       frame = maxFrame - 1;
     }
-    else if (frame < 0)
-    {
+    else if (frame < 0) {
       frame = 0;
     }
 
@@ -1477,14 +1489,24 @@ export class AnnotationPlayerExperimental extends TatorElement {
     return this._play.hasAttribute("is-paused");
   }
 
+
   checkReady()
   {
     if (this._video.bufferDelayRequired() &&
-      this._video._onDemandPlaybackReady != true &&
+      this._video.onDemandBufferAvailable() != "yes" &&
       this._frameInPlayWindow(this._currentGlobalFrame())) {
       this.handleNotReadyEvent();
     }
+    else
+    {
+      // TODO refactor this into a member function
+      this._play._button.removeAttribute("disabled");
+      this._rewind.removeAttribute("disabled")
+      this._fastForward.removeAttribute("disabled");
+      this._play.removeAttribute("tooltip");
+    }
   }
+
   handleNotReadyEvent()
   {
     if (this._playerDownloadDisabled) {
@@ -1512,26 +1534,30 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._rewind.setAttribute("disabled","")
     this._fastForward.setAttribute("disabled","");
 
-    const timeouts = [2000, 4000, 8000, 16000];
+
+    const timeouts = [3000, 6000, 12000, 16000];
     var timeoutIndex = 0;
     var timeoutCounter = 0;
-    const clock_check = 100;
+    const clock_check = 1000/3;
     this._last_duration = this._video.playBufferDuration();
 
+    var last_check = performance.now();
     let check_ready = (checkFrame) => {
 
-      if (this._videoStatus == "scrubbing") {
-        console.log(`Player status == scrubbing | Cancelling check_ready`);
-        return;
-      }
-      if (this._videoStatus == "playing") {
-        console.error(`Player status == playing | Cancelling check_ready`);
-        return;
-      }
-
-      timeoutCounter += clock_check;
-
+      clearTimeout(this._handleNotReadyTimeout);
       this._handleNotReadyTimeout = null;
+
+      if (this._videoStatus == "playing") {
+        console.warn(`Player status == ${this._videoStatus} | Cancelling check_ready`);
+        return;
+      }
+
+      const now = performance.now();
+      timeoutCounter += now - last_check;
+      console.info(`${now}: Timeout Counter ${timeoutCounter} LAST=${last_check}`);
+      last_check = now;
+
+      
       let not_ready = false;
       if (checkFrame != this._video.currentFrame()) {
         console.log(`check_ready frame ${checkFrame} and current frame ${this._video.currentFrame()} do not match. restarting check_ready`)
@@ -1542,10 +1568,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
           check_ready(this._video.currentFrame())}, 100);
         return;
       }
-      if (this._video._onDemandPlaybackReady != true)
+      if (this._video.onDemandBufferAvailable() != "yes")
       {
         not_ready = true;
-        if (timeoutCounter == timeouts[timeoutIndex]) {
+        if (timeoutCounter >= timeouts[timeoutIndex]) {
           timeoutCounter = 0;
           timeoutIndex += 1;
           console.log(`Video playback check - restart [Now: ${new Date().toISOString()}]`);
@@ -1557,9 +1583,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
         // Heal the buffer state if duration increases since the last time we looked
         if (this._video.playBufferDuration() > this._last_duration)
         {
-          this._last_duration = this._video.playBufferDuration();
+          timeoutCounter = 0; //truncate 
           timeoutIndex = 0;
         }
+        this._last_duration = this._video.playBufferDuration();
         // For this logic to work it is actually based off the worst case
         // number of clocks in a given timeout attempt.
         if (timeoutIndex < timeouts[timeouts.length-1]/clock_check) {

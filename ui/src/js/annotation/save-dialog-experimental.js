@@ -21,18 +21,18 @@ export class SaveDialogExperimental extends TatorElement {
     this._type.setAttribute("name", "Type");
     this._div.appendChild(this._type);
 
-    this._attributes = document.createElement("attribute-panel");
+    this._attributes = document.createElement("attribute-panel-experimental");
     this._div.appendChild(this._attributes);
 
     const favesDiv = document.createElement("div");
-    favesDiv.setAttribute("class", "annotation__panel-group py-2 text-gray f2");
+    favesDiv.setAttribute("class", "annotation__panel-group top-border py-2 text-gray f2");
     this._div.appendChild(favesDiv);
 
     this._favorites = document.createElement("favorites-panel");
     favesDiv.appendChild(this._favorites);
 
     const buttons = document.createElement("div");
-    buttons.setAttribute("class", "d-flex flex-items-center py-4");
+    buttons.setAttribute("class", "d-flex flex-items-center py-4 top-border flex-justify-center");
     this._div.appendChild(buttons);
 
     this._save = document.createElement("button");
@@ -84,10 +84,10 @@ export class SaveDialogExperimental extends TatorElement {
     this._trackId = null;
   }
 
-  init(projectId, mediaId, dataTypes, defaultType, undo, version, favorites) {
+  init(projectId, timeKeeper, dataTypes, defaultType, undo, version, favorites) {
 
     this._projectId = projectId;
-    this._mediaId = mediaId;
+    this._timeKeeper = timeKeeper;
     this._undo = undo;
     this._version = version;
     this._favoritesData = favorites;
@@ -114,10 +114,6 @@ export class SaveDialogExperimental extends TatorElement {
     this._attributes.dispatchEvent(new Event("change"));
   }
 
-  set stateMediaIds(val) {
-    this._stateMediaIds = val;
-  }
-
   // Save the underlying object to the database
   saveObject(requestObj, values)
   {
@@ -131,15 +127,26 @@ export class SaveDialogExperimental extends TatorElement {
       detail: values
     }));
 
+    // Gather the media specific information associated with the global frame
+    // #TODO Handle multiview, assume only one.
+    var globalFrame = requestObj.frame;
+    var postMediaList = this._timeKeeper.getMediaFromFrame(globalFrame);
+    var mediaIdList = [];
+    for (const media of postMediaList) {
+      mediaIdList.push(media.id);
+    }
+    var mediaFrame = this._timeKeeper.getMediaFrame(mediaIdList[0], globalFrame);
+
     if (this._dataType.isTrack && typeof requestObj.localization_ids === "undefined") {
-      const localizationBody = {
+      var localizationBody = {
         type: Number(this._dataType.localizationType.id.split("_")[1]),
         name: this._dataType.localizationType.name,
         version: this._version.id,
-        media_id: this._mediaId,
+        media_id: mediaIdList[0],
         ...requestObj,
         ...values,
       };
+      localizationBody.frame = mediaFrame;
       this._undo.post("Localizations", localizationBody, this._dataType.localizationType)
       .then(localizationResponse => {
         if (this._trackId === null) {
@@ -148,7 +155,7 @@ export class SaveDialogExperimental extends TatorElement {
             type: Number(this._dataType.id.split("_")[1]),
             name: this._dataType.name,
             version: this._version.id,
-            media_ids: [this._mediaId],
+            media_ids: mediaIdList,
             localization_ids: localizationResponse[0].id,
             ...values,
           };
@@ -157,7 +164,7 @@ export class SaveDialogExperimental extends TatorElement {
           this.dispatchEvent(new CustomEvent("addDetectionToTrack", {
             detail: {localizationType: this._dataType.localizationType.id,
                      trackType: this._dataType.id,
-                     frame: requestObj.frame,
+                     frame: mediaFrame,
                      mainTrackId: this._trackId,
                      detectionId: localizationResponse[0].id[0],
                      selectTrack: false}
@@ -184,12 +191,12 @@ export class SaveDialogExperimental extends TatorElement {
           body.media_ids = this._stateMediaIds;
         }
         else {
-          body.media_ids = [this._mediaId];
+          body.media_ids = mediaIdList;
         }
         this._undo.post("States", body, this._dataType);
       }
       else {
-        body.media_id = this._mediaId
+        body.media_id = mediaIdList[0]
         this._undo.post("Localizations", body, this._dataType);
       }
     }
