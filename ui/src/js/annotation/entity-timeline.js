@@ -170,39 +170,18 @@ export class EntityTimeline extends BaseTimeline {
             dataType: dataType,
             name: dataType.name,
             mode: mode,
-            startUTCAttr: startUTCAttr,
-            endUTCAttr: endUTCAttr,
+            startUTCAttr: null,
+            endUTCAttr: null,
             startFrameAttr: startFrameAttr,
             endFrameAttr: endFrameAttr,
             startInVideoCheckAttr: startInVideoCheckAttr,
             endInVideoCheckAttr: endInVideoCheckAttr,
-            inVideoCheckAttr: inVideoCheckAttr,
-          });
-        }
-        else if (startUTCAttrList.length == 1 && endUTCAttrList.length == 1) {
-
-          startFrameAttr = null;
-          endFrameAttr = null;
-          startUTCAttr = startUTCAttrList[0];
-          endUTCAttr = endUTCAttrList[0];
-          inVideoCheckAttr = null;
-
-          this._attrStyleRangeTypes.push({
-            dataType: dataType,
-            name: dataType.name,
-            mode: mode,
-            startUTCAttr: startUTCAttr,
-            endUTCAttr: endUTCAttr,
-            startFrameAttr: startFrameAttr,
-            endFrameAttr: endFrameAttr,
-            startInVideoCheckAttr: startInVideoCheckAttr,
-            endInVideoCheckAttr: endInVideoCheckAttr,
-            inVideoCheckAttr: inVideoCheckAttr,
+            inVideoCheckAttr: null,
           });
         }
         else if (
-          startUTCAttrList.length > 1 &&
-          endUTCAttrList.length > 1 &&
+          startUTCAttrList.length >= 1 &&
+          endUTCAttrList.length >= 1 &&
           startUTCAttrList.length == endUTCAttrList.length &&
           rangeUtcList.length == startUTCAttrList.length) {
 
@@ -235,13 +214,31 @@ export class EntityTimeline extends BaseTimeline {
               mode: mode,
               startUTCAttr: startUTCAttr,
               endUTCAttr: endUTCAttr,
-              startFrameAttr: startFrameAttr,
-              endFrameAttr: endFrameAttr,
+              startFrameAttr: null,
+              endFrameAttr: null,
               startInVideoCheckAttr: startInVideoCheckAttr,
               endInVideoCheckAttr: endInVideoCheckAttr,
               inVideoCheckAttr: inVideoCheckAttr
             });
           }
+        }
+        else if (startUTCAttrList.length == 1 && endUTCAttrList.length == 1) {
+
+          startUTCAttr = startUTCAttrList[0];
+          endUTCAttr = endUTCAttrList[0];
+
+          this._attrStyleRangeTypes.push({
+            dataType: dataType,
+            name: dataType.name,
+            mode: mode,
+            startUTCAttr: startUTCAttr,
+            endUTCAttr: endUTCAttr,
+            startFrameAttr: null,
+            endFrameAttr: null,
+            startInVideoCheckAttr: startInVideoCheckAttr,
+            endInVideoCheckAttr: endInVideoCheckAttr,
+            inVideoCheckAttr: null,
+          });
         }
         else if (startFrameAttrList.length > 1 &&
           endFrameAttrList.length > 1 &&
