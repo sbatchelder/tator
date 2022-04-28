@@ -2,7 +2,7 @@ import { TatorElement } from "../components/tator-element.js";
 import { Utilities } from "../util/utilities.js";
 import { guiFPS } from "../annotator/video.js";
 import { RATE_CUTOFF_FOR_ON_DEMAND } from "../annotator/video.js";
-import { handle_video_error } from "./annotation-common.js";
+import { handle_video_error, PlayInteraction } from "./annotation-common.js";
 
 export class AnnotationMulti extends TatorElement {
   constructor() {
@@ -38,6 +38,8 @@ export class AnnotationMulti extends TatorElement {
     const fastForward = document.createElement("fast-forward-button");
     playButtons.appendChild(fastForward);
     this._fastForward = fastForward;
+
+    this._playInteraction = new PlayInteraction(this);
 
     const settingsDiv = document.createElement("div");
     settingsDiv.setAttribute("class", "d-flex flex-items-center");
@@ -260,11 +262,7 @@ export class AnnotationMulti extends TatorElement {
     this._videoStatus = "paused"; // Possible values: playing | paused | scrubbing
 
     // Start out with play button disabled.
-    this._play._button.setAttribute("disabled","");
-    // Use some spaces because the tooltip z-index is wrong
-    this._play.setAttribute("tooltip", "    Video is buffering");
-    this._rewind.setAttribute("disabled","")
-    this._fastForward.setAttribute("disabled","");
+    this._playInteraction.disable();
 
     this._timelineD3.addEventListener("zoomedTimeline", evt => {
       if (evt.detail.minFrame < 1 || evt.detail.maxFrame < 1) {
@@ -488,6 +486,7 @@ export class AnnotationMulti extends TatorElement {
     const now = Date.now();
     const frame = Number(evt.target.value);
     const waitOk = now - this._lastScrub > this._scrubInterval;
+    this._playInteraction.disable(); // disable play on scrub
     if (waitOk) {
 
       this._videoStatus = "paused";
@@ -768,6 +767,8 @@ export class AnnotationMulti extends TatorElement {
         let prime = this._videos[idx];
         this.parent._browser.canvas = prime;
         let alert_sent = false;
+
+
         prime.addEventListener("videoError", (evt) => {
           if (alert_sent == false)
           {
@@ -815,7 +816,6 @@ export class AnnotationMulti extends TatorElement {
       this._videos[idx].addEventListener("bufferLoaded",
                              (evt) => {
                                handle_buffer_load(idx,evt);
-                               this.checkReady();
                              });
       this._videos[idx].addEventListener("onDemandDetail",
                              (evt) => {
@@ -946,10 +946,7 @@ export class AnnotationMulti extends TatorElement {
         if (allVideosReady) {
           console.log("allVideosReady");
           if (this.is_paused()) {
-            this._play._button.removeAttribute("disabled");
-            this._rewind.removeAttribute("disabled")
-            this._fastForward.removeAttribute("disabled");
-            this._play.removeAttribute("tooltip");
+            this._playInteraction.enable();
             this._playbackDisabled = false;
           }
         }
@@ -963,7 +960,6 @@ export class AnnotationMulti extends TatorElement {
     }
 
 
-
     let video_info = [];
     Promise.all(video_resp).then((values) => {
       for (let resp of values)
@@ -971,6 +967,20 @@ export class AnnotationMulti extends TatorElement {
         video_info.push(resp.json());
       }
       Promise.all(video_info).then((info) => {
+        // When a seek is complete check to make sure the display all set
+        this._videos[0].addEventListener("seekComplete", evt => {
+          // Only run check ready on final seek
+          if (this._slider.active == false)
+          {
+            this.checkReady();
+          }
+          else
+          {
+            // Disable buttons when actively seeking
+            this._playInteraction.disable();
+          }
+        });
+
         let max_frames = 0;
         let max_time = 0;
         let fps_of_max = 0;
@@ -1419,10 +1429,7 @@ export class AnnotationMulti extends TatorElement {
     }
     else
     {
-      this._play._button.removeAttribute("disabled");
-      this._rewind.removeAttribute("disabled")
-      this._fastForward.removeAttribute("disabled");
-      this._play.removeAttribute("tooltip");
+      this._playInteraction.enable();
       this._playbackDisabled = false;
     }
   }
@@ -1505,7 +1512,8 @@ export class AnnotationMulti extends TatorElement {
       console.log("Already handling a not ready event");
       return;
     }
-    this.disablePlayUI();
+
+    this._playInteraction.disable();
 
     const timeouts = [4000, 8000, 16000];
     var timeoutIndex = 0;
@@ -1596,20 +1604,14 @@ export class AnnotationMulti extends TatorElement {
             seekPromiseList.push(seekPromise);
           }
           Promise.allSettled(seekPromiseList).then(() => {
-            this._play._button.removeAttribute("disabled");
-            this._rewind.removeAttribute("disabled")
-            this._fastForward.removeAttribute("disabled");
-            this._play.removeAttribute("tooltip");
+            this._playInteraction.enable();
             this._playbackDisabled = false;
           })
           .catch((exc) => {
             console.warn("allVideosReady() seekFrame promises error caught")
             console.warn(exc);
 
-            this._play._button.removeAttribute("disabled");
-            this._rewind.removeAttribute("disabled")
-            this._fastForward.removeAttribute("disabled");
-            this._play.removeAttribute("tooltip");
+            this._playInteraction.enable();
             this._playbackDisabled = false;
           })
         }
@@ -1802,15 +1804,6 @@ export class AnnotationMulti extends TatorElement {
     clearTimeout(this._syncThread);
     Promise.all(pausePromises).then(failSafeFunction);
 
-  }
-
-  disablePlayUI() {
-    this._play._button.setAttribute("disabled","");
-    // Use some spaces because the tooltip z-index is wrong
-    this._play.setAttribute("tooltip", "    Video is buffering");
-    this._rewind.setAttribute("disabled","")
-    this._fastForward.setAttribute("disabled","");
-    this._playbackDisabled = true;
   }
 
   refresh() {
