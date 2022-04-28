@@ -691,9 +691,9 @@ export class VideoCanvas extends AnnotationCanvas {
 
                         // Set the streaming objects to the same as the first media file
                         // TODO: make this smarter.
-                        this._videoObject.media_files.streaming = json[0].media_files.streaming;
+                        this._videoObject.media_files.streaming = this._children[0].media_files.streaming;
                         this.dispatchEvent(new CustomEvent("discoveredQualities",
-                                          {composed: true, detail: {media: json[0]}}));
+                                          {composed: true, detail: {media: this._children[0]}}));
                                           this._videoElement = [];
 
                         // Setup resize handler
@@ -797,7 +797,7 @@ export class VideoCanvas extends AnnotationCanvas {
     this._draw.resizeViewport(dims[0], dims[1]);
     this._fps=Math.round(1000*fps)/1000;
     this._numFrames=numFrames-1;
-    this._numSeconds=fps*numFrames;
+    this._numSeconds=numFrames/fps;
     this._dims=dims;
     this.resetRoi();
 
