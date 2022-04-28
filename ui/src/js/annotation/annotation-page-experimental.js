@@ -834,8 +834,10 @@ export class AnnotationPageExperimental extends TatorPage {
             }
           }
 
+          canvas.undoBuffer = this._undo;
+          canvas.annotationData = this._data;
+
           // #TODO Will need to update this for the multi case
-          this._data.addEventListener("freshData", evt => {});
           for (const media of this._mediaList) {
             this._data.init(dataTypes, this._version, projectId, media.id, false, true);
           }
@@ -856,9 +858,6 @@ export class AnnotationPageExperimental extends TatorPage {
             }
           });
           this._data.initialUpdate();
-
-          canvas.undoBuffer = this._undo;
-          canvas.annotationData = this._data;
 
           const byType = localizationTypes.reduce((sec, obj) => {
             if (obj.visible && obj.drawable) {

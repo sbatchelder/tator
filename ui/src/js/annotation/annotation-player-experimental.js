@@ -561,9 +561,18 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     // When a seek is complete check to make sure the display all set
     this._video.addEventListener("seekComplete", evt => {
-      clearTimeout(this._handleNotReadyTimeout)
-      this._handleNotReadyTimeout = null;
-      this.checkReady();
+      if (this._slider.active == false) {
+        clearTimeout(this._handleNotReadyTimeout)
+        this._handleNotReadyTimeout = null;
+        this.checkReady();
+      }
+      else {
+        this._play._button.setAttribute("disabled","");
+        // Use some spaces because the tooltip z-index is wrong
+        this._play.setAttribute("tooltip", "    Not in play window");
+        this._rewind.setAttribute("disabled","")
+        this._fastForward.setAttribute("disabled","");
+      }
     });
 
     // When a playback is stalled, pause the video
@@ -945,6 +954,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
   set timeKeeper(val) {
     this._timeKeeper = val;
 
+    this._video._timeKeeper = val;
     this._videoTimeline.timeKeeper = val;
     this._videoSegmentSelector.timeKeeper = val;
     this._entityTimeline.timeKeeper = val;
@@ -1380,10 +1390,6 @@ export class AnnotationPlayerExperimental extends TatorElement {
       }
       this._videoStatus = "paused";
       this.checkReady();
-      this.dispatchEvent(new Event("hideLoading", {composed: true}));
-    }).catch((e) => {
-      console.error(`"ERROR: ${e}`)
-      throw e;
       this.dispatchEvent(new Event("hideLoading", {composed: true}));
     });
   }

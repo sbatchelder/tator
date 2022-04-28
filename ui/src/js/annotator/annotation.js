@@ -235,7 +235,7 @@ export class Clipboard
 
       if (this._cutElement)
       {
-        if (this._cutElement.frame != this._annotationCtrl.currentFrame())
+        if (this.getLocalizationFrame(this._cutElement) != this._annotationCtrl.currentFrame())
         {
           console.info("Pasting in cut-mode");
           this._annotationCtrl.modifyLocalization(this._cutElement,this._annotationCtrl.currentFrame());
@@ -2069,13 +2069,19 @@ export class AnnotationCanvas extends TatorElement
     for (var idx = 0; idx < data.length; idx++)
     {
       var element=data[idx];
-      if (element.media_id != this._videoObject.id &&
-          element.media != this._videoObject.id)
-      {
-        continue;
+      var frameId=data[idx]['frame'];
+
+      if (this._timeKeeper != null) {
+        frameId = this._timeKeeper.getGlobalFrame("matchFrame", [element.media], element.frame);
+      }
+      else {
+        if (element.media_id != this._videoObject.id &&
+            element.media != this._videoObject.id) {
+          continue;
+        }
       }
 
-      var frameId=data[idx]['frame'];
+
       var typeid = typeObj.id;
       if (this.activeLocalization) {
         if (data[idx].id == this.activeLocalization.id) {
@@ -2419,7 +2425,7 @@ export class AnnotationCanvas extends TatorElement
     }
 
     // Add the cut object for mouse experience
-    if (this._clipboard.cutObject() && this._clipboard.cutObject().frame != currentFrame)
+    if (this._clipboard.cutObject() && this.getLocalizationFrame(this._clipboard.cutObject()) != currentFrame)
     {
       localizations.push(this._clipboard.cutObject());
     }
@@ -2671,7 +2677,7 @@ export class AnnotationCanvas extends TatorElement
       var localization = this.localizationByLocation(location);
       if (localization)
       {
-        if (localization.frame != this.currentFrame())
+        if (this.getLocalizationFrame(localization) != this.currentFrame())
         {
           this._textOverlay.classList.add("select-not-allowed");
           return;
@@ -2896,7 +2902,7 @@ export class AnnotationCanvas extends TatorElement
     {
       if (localization)
       {
-        if (localization.frame != this.currentFrame())
+        if (this.getLocalizationFrame(localization) != this.currentFrame())
         {
           this._textOverlay.classList.add("select-not-allowed");
           return;
@@ -2942,7 +2948,7 @@ export class AnnotationCanvas extends TatorElement
       }
       else if (localization)
       {
-        if (localization.frame != this.currentFrame())
+        if (this.getLocalizationFrame(localization) != this.currentFrame())
         {
           this._textOverlay.classList.add("select-not-allowed");
           return;
@@ -3019,7 +3025,8 @@ export class AnnotationCanvas extends TatorElement
   {
     // Seek to a frame if we aren't actually there but trying to display
     // a localization
-    if (localization.frame != this.currentFrame())
+    var frameNum = this.getLocalizationFrame(localization);
+    if (frameNum != this.currentFrame())
     {
       if (skipGoToFrame)
       {
@@ -3033,7 +3040,7 @@ export class AnnotationCanvas extends TatorElement
       }
       else
       {
-        this.gotoFrame(localization.frame).then(() => {
+        this.gotoFrame(frameNum).then(() => {
           this.selectLocalization(localization, skipAnimation, muteOthers);
         });
         return;
@@ -3134,7 +3141,7 @@ export class AnnotationCanvas extends TatorElement
           for (const localization of value) {
             if (localization.id in this._data._trackDb) {
               const sameId = this._data._trackDb[localization.id].id == track.id;
-              const firstFrame = localization.frame == frame;
+              const firstFrame = this.getLocalizationFrame(localization) == frame;
               if (sameId && firstFrame) {
                 this.selectLocalization(localization, true);
                 this._activeTrackFrame = frame;
@@ -4505,6 +4512,7 @@ export class AnnotationCanvas extends TatorElement
     }
     if (this._framedData.has(frameIdx))
     {
+      console.log(`drawAnnotations: woo`);
       var typeDict = this._framedData.get(frameIdx);
       for (let typeid of typeDict.keys())
       {
@@ -4587,6 +4595,7 @@ export class AnnotationCanvas extends TatorElement
     }
     else
     {
+      console.log(`drawAnnotations: null`);
       return null;
     }
   }
@@ -4624,7 +4633,7 @@ export class AnnotationCanvas extends TatorElement
   onPause()
   {
     if (this.activeLocalization) {
-      if (this.currentFrame() !== this.activeLocalization.frame) {
+      if (this.currentFrame() !== this.getLocalizationFrame(this.activeLocalization)) {
         this.activeLocalization = null;
         this._mouseMode = MouseMode.QUERY;
       } else {
@@ -4843,14 +4852,14 @@ export class AnnotationCanvas extends TatorElement
       that.moveOffscreenBuffer(that._roi);
     }
 
-    if (this.currentFrame() == localization.frame)
+    if (this.currentFrame() == this.getLocalizationFrame(localization))
     {
       this.moveToLocalization(localization);
       makeSnapshot();
     }
     else
     {
-      this.seekFrame(localization.frame,
+      this.seekFrame(this.getLocalizationFrame(localization),
                      (frameIdx, source, width, height) => {
                        this.updateOffscreenBuffer(frameIdx, source, width, height);
                        this.moveToLocalization(localization);
@@ -4882,5 +4891,19 @@ export class AnnotationCanvas extends TatorElement
           anchor.download=`${filename}.png`;
           anchor.click();
         });
+  }
+
+  /**
+   * Get the provided localization's frame number
+   * @param {Tator.Localization} loc
+   * @return {integer} Frame number associated with localization
+   */
+  getLocalizationFrame(loc) {
+    if (this._timeKeeper != null) {
+      return this._timeKeeper.getGlobalFrame("matchFrame", [loc.media], loc.frame);
+    }
+    else {
+      return loc.frame;
+    }
   }
 }
