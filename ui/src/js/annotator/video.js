@@ -634,6 +634,16 @@ export class VideoCanvas extends AnnotationCanvas {
                       }
                       else
                       {
+                        // Before doing anything, loop over the media_files["streaming"] options
+                        // sort it by resolution, and replace it so that the order is the same.
+                        for (var childMedia of this._children) {
+                          var streamingOptions = childMedia.media_files["streaming"];
+                          streamingOptions.sort((a, b) => {
+                            return b.resolution[0] - a.resolution[0];
+                          });
+                          childMedia.media_files.streaming = streamingOptions;
+                        }
+
                         let new_length = 0;
                         let streaming_files=[];
 
