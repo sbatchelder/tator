@@ -13,7 +13,7 @@ export class MediaCard extends TatorElement {
     this._li.setAttribute("class", "project__file rounded-2");
     this._shadow.appendChild(this._li);
 
-    this._link = document.createElement("a");
+    this._link = document.createElement("div");
     this._link.setAttribute("class", "file__link d-flex flex-items-center text-white");
     this._link.setAttribute("href", "#");
     this._li.appendChild(this._link);
@@ -342,6 +342,7 @@ export class MediaCard extends TatorElement {
       this._attachmentButton.style.display = "none";
     }
   }
+  
 }
 
 customElements.define("media-card", MediaCard);
