@@ -4512,7 +4512,6 @@ export class AnnotationCanvas extends TatorElement
     }
     if (this._framedData.has(frameIdx))
     {
-      console.log(`drawAnnotations: woo`);
       var typeDict = this._framedData.get(frameIdx);
       for (let typeid of typeDict.keys())
       {
@@ -4595,7 +4594,6 @@ export class AnnotationCanvas extends TatorElement
     }
     else
     {
-      console.log(`drawAnnotations: null`);
       return null;
     }
   }

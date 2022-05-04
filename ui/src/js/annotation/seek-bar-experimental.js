@@ -15,10 +15,12 @@ export class SeekBarExperimental extends TatorElement {
     this.bar.appendChild(this.handle);
     this._loadedPercentage = 0;
     this._visualType = "";
+    this._active = false;
 
     var that = this;
     var clickHandler=function(evt)
     {
+      this._active = false;
       var width = that.offsetWidth;
       var startX = that.offsetLeft;
       if (width == 0)
@@ -72,7 +74,9 @@ export class SeekBarExperimental extends TatorElement {
     }
     var releaseMouse=function(evt)
     {
-
+      console.info("RELEASE MOUSE.");
+      this._active = false;
+      clearInterval(that._periodicCheck);
       document.removeEventListener("mouseup",
                                    releaseMouse);
       document.removeEventListener("mousemove",
@@ -85,17 +89,32 @@ export class SeekBarExperimental extends TatorElement {
                    that.bar.addEventListener("click", clickHandler);
                  },0);
     }
-    this.handle.addEventListener("mousedown", evt =>
-                                 {
-                                   that.bar.removeEventListener("click", clickHandler);
-                                   document.addEventListener("mouseup",
-                                                             releaseMouse);
-                                   document.addEventListener("mousemove",
-                                                             dragHandler);
-                                   this.handle.classList.add("range-handle-selected");
-                                   evt.stopPropagation();
-                                   return false;
-                                 });
+    this.handle.addEventListener("mousedown", evt => {
+      this._active = true;
+      this._lastValue = this.value;
+
+      this._periodicCheck = setInterval(() =>
+        {
+        if (this._value == this._lastValue)
+        {
+          return;
+        }
+        this._lastValue = this.value;
+        this.dispatchEvent(
+          new CustomEvent("input",
+                          {composed: true,
+                          detail: {frame: this.value}}));
+        }
+      , 30);
+      that.bar.removeEventListener("click", clickHandler);
+      document.addEventListener("mouseup",
+                                releaseMouse);
+      document.addEventListener("mousemove",
+                                dragHandler);
+      this.handle.classList.add("range-handle-selected");
+      evt.stopPropagation();
+      return false;
+    });
 
 
 
@@ -161,6 +180,11 @@ export class SeekBarExperimental extends TatorElement {
       this.handle.style.display = "block";
       this.handle.style.left = `${percentage}%`;
     }
+  }
+
+  get active()
+  {
+    return this._active;
   }
 
   attributeChangedCallback(name, oldValue, newValue)

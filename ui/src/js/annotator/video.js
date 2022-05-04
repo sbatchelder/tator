@@ -2267,7 +2267,6 @@ export class VideoCanvas extends AnnotationCanvas {
           this._onDemandReadyPercentage = this._onDemandReadyPercentage * 100;
           if (this._onDemandReadyPercentage > 100) { this._onDemandReadyPercentage = 100.0; }
           if (this._onDemandReadyPercentage < 0) { this._onDemandReadyPercentage = 0.0; }
-          console.log(`!!!!!!!!!!!!!!!!!!! ${this._onDemandReadyPercentage} ${timeToEnd} ${playbackReadyThreshold}`);
         }
         if (!foundMatchingRange && this._onDemandPendingDownloads < 1 && !this._onDemandPlaybackReady)
         {

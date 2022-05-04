@@ -3,7 +3,7 @@ import { Utilities } from "../util/utilities.js";
 import { guiFPS } from "../annotator/video.js";
 import { RATE_CUTOFF_FOR_ON_DEMAND } from "../annotator/video.js";
 import { GlobalTimeKeeper } from "./global-time-keeper.js";
-import { tickStep } from "d3";
+import { handle_video_error, PlayInteraction } from "./annotation-common.js";
 
 /**
  * #TODO
@@ -18,6 +18,14 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._shadow.appendChild(playerDiv);
 
     this._video = document.createElement("video-canvas");
+    let alert_sent = false;
+    this._video.addEventListener("videoError", (evt) => {
+      if (alert_sent == false)
+      {
+        handle_video_error(evt, this._shadow);
+        alert_sent = true;
+      }
+    });
     this._video.domParents.push({"object":this});
     playerDiv.appendChild(this._video);
     this._video.stretch = true;
@@ -43,6 +51,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     const fastForward = document.createElement("fast-forward-button");
     playButtons.appendChild(fastForward);
     this._fastForward = fastForward;
+
+    this._playInteraction = new PlayInteraction(this);
 
     const settingsDiv = document.createElement("div");
     settingsDiv.setAttribute("class", "d-flex flex-items-center");
@@ -559,6 +569,16 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._video.setProgressBarPercentage(evt.detail.readyPercentage, true);
     });
 
+    this._video.addEventListener("videoLengthChanged", evt => {
+      console.log(`videoLengthChanged: ${evt.detail.length} - #TODO Implement this`);
+    });
+
+    this._video.addEventListener("firstFrame", evt => {
+      if (evt.detail.value != 0) {
+        console.error(`firstFrame: ${evt.detail.value} - #TODO Implement this`);
+      }
+    });
+
     // When a seek is complete check to make sure the display all set
     this._video.addEventListener("seekComplete", evt => {
       if (this._slider.active == false) {
@@ -567,11 +587,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
         this.checkReady();
       }
       else {
-        this._play._button.setAttribute("disabled","");
-        // Use some spaces because the tooltip z-index is wrong
-        this._play.setAttribute("tooltip", "    Not in play window");
-        this._rewind.setAttribute("disabled","")
-        this._fastForward.setAttribute("disabled","");
+        this._playInteraction.disable();
       }
     });
 
@@ -619,21 +635,11 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._video.addEventListener("playbackReady", () => {
       if (this.is_paused() && this._videoMode == "play") {
-        if(this._frameInPlayWindow(this._currentGlobalFrame())) {
+        //if(this._frameInPlayWindow(this._currentGlobalFrame())) {
           this._video.setProgressBarPercentage(100);
           this._video.toggleProgressBar(false);
-          this._play._button.removeAttribute("disabled");
-          this._rewind.removeAttribute("disabled")
-          this._fastForward.removeAttribute("disabled");
-          this._play.removeAttribute("tooltip");
-        }
-        else {
-          this._play._button.setAttribute("disabled","");
-          // Use some spaces because the tooltip z-index is wrong
-          this._play.setAttribute("tooltip", "    Not in play window");
-          this._rewind.setAttribute("disabled","")
-          this._fastForward.setAttribute("disabled","");
-        }
+          this._playInteraction.enable();
+        //}
       }
     });
 
@@ -1503,13 +1509,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
       this._frameInPlayWindow(this._currentGlobalFrame())) {
       this.handleNotReadyEvent();
     }
-    else
-    {
-      // TODO refactor this into a member function
-      this._play._button.removeAttribute("disabled");
-      this._rewind.removeAttribute("disabled")
-      this._fastForward.removeAttribute("disabled");
-      this._play.removeAttribute("tooltip");
+    else {
+      this._playInteraction.enable();
     }
   }
 
@@ -1534,11 +1535,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._video.setProgressBarPercentage(0);
     this._video.toggleProgressBar(true);
-    this._play._button.setAttribute("disabled","");
-    // Use some spaces because the tooltip z-index is wrong
-    this._play.setAttribute("tooltip", "    Video is buffering");
-    this._rewind.setAttribute("disabled","")
-    this._fastForward.setAttribute("disabled","");
+    this._playInteraction.disable();
 
 
     const timeouts = [3000, 6000, 12000, 16000];
@@ -1563,7 +1560,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
       console.info(`${now}: Timeout Counter ${timeoutCounter} LAST=${last_check}`);
       last_check = now;
 
-      
+
       let not_ready = false;
       if (checkFrame != this._video.currentFrame()) {
         console.log(`check_ready frame ${checkFrame} and current frame ${this._video.currentFrame()} do not match. restarting check_ready`)
@@ -1589,7 +1586,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
         // Heal the buffer state if duration increases since the last time we looked
         if (this._video.playBufferDuration() > this._last_duration)
         {
-          timeoutCounter = 0; //truncate 
+          timeoutCounter = 0; //truncate
           timeoutIndex = 0;
         }
         this._last_duration = this._video.playBufferDuration();
@@ -1614,10 +1611,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
           this._video.setProgressBarPercentage(100);
           this._video.toggleProgressBar(false);
           if (this._videoMode == "play") {
-            this._play._button.removeAttribute("disabled");
-            this._rewind.removeAttribute("disabled")
-            this._fastForward.removeAttribute("disabled");
-            this._play.removeAttribute("tooltip");
+            this._playInteraction.enable();
           }
         }).catch((e) => {
           console.log(e);
@@ -1625,10 +1619,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
           this._video.setProgressBarPercentage(100);
           this._video.toggleProgressBar(false);
           if (this._videoMode == "play") {
-            this._play._button.removeAttribute("disabled");
-            this._rewind.removeAttribute("disabled")
-            this._fastForward.removeAttribute("disabled");
-            this._play.removeAttribute("tooltip");
+            this._playInteraction.enable();
           }
         });
       }
@@ -1727,10 +1718,10 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     const paused = this.is_paused();
     if (paused == false) {
+      this._videoStatus = "paused";
       this._video.pause();
       this._play.setAttribute("is-paused", "")
     }
-    this._videoStatus = "paused";
     this.checkReady();
   }
 
@@ -1806,14 +1797,13 @@ export class AnnotationPlayerExperimental extends TatorElement {
   // Go to the frame at the highest resolution
   goToFrame(globalFrame) {
     this._video.onPlay();
+    /*
     this._setTimeControlStyle();
     if(this._videoMode == "play" && !this._frameInPlayWindow(globalFrame)) {
-      this._play._button.setAttribute("disabled","");
-      // Use some spaces because the tooltip z-index is wrong
+      this._playInteraction.disable();
       this._play.setAttribute("tooltip", "    Not in play window");
-      this._rewind.setAttribute("disabled","")
-      this._fastForward.setAttribute("disabled","");
     }
+    */ // #TODO This needs to be re-added if doing a moving play window
 
     return this._video.gotoFrame(globalFrame, true);
   }
