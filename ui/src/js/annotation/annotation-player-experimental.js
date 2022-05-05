@@ -1697,6 +1697,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this.dispatchEvent(new Event("playing", {composed: true}));
     this._fastForward.setAttribute("disabled", "");
     this._rewind.setAttribute("disabled", "");
+    this.disableRateChange();
+    this._rateControl.setValue(0.5, true);
 
     const paused = this.is_paused();
     if (paused) {
@@ -1715,6 +1717,8 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this.dispatchEvent(new Event("paused", {composed: true}));
     this._fastForward.removeAttribute("disabled");
     this._rewind.removeAttribute("disabled");
+    this._rateControl.setValue(this._rate);
+    this.enableRateChange();
 
     const paused = this.is_paused();
     if (paused == false) {
