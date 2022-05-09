@@ -522,7 +522,7 @@ export class EntityCard extends TatorElement {
       }
       var uri = `/${project}/annotation/${val.id}?${this._mediaParams.toString()}`;
       if ('concat' in this._media.media_files) {
-        uri = `/${project}/annotation-experimental/${val.id}${this._mediaParams.toString()}`;
+        uri = `/${project}/annotation-experimental/${val.id}?${this._mediaParams.toString()}`;
       }
       this._name.setAttribute("href", uri);
       this._link.setAttribute("href", uri);
