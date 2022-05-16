@@ -41,7 +41,12 @@ export class SeekBarExperimental extends TatorElement {
     }
     this.bar.addEventListener("click", clickHandler);
 
-    var sendUpdate = (evt, evt_type) => {
+    var sendUpdate = (evt, evt_type, updateType) => {
+
+      if (updateType == "scrub" && that._loadedPercentage < 0.999) {
+        return;
+      }
+
       // Only recalculate if it is an input, not a change
       if (evt_type == "input")
       {
@@ -55,7 +60,9 @@ export class SeekBarExperimental extends TatorElement {
                      width);
         const percentage = Math.min(relativeX/width,
                                     that._loadedPercentage);
-        that.value = Math.round((percentage * (that._max - that._min) + that._min));
+
+        var frame = Math.round((percentage * (that._max - that._min) + that._min));
+        that.value = frame;
       }
       that.dispatchEvent(
         new CustomEvent(evt_type,
@@ -67,7 +74,7 @@ export class SeekBarExperimental extends TatorElement {
     {
       if (evt.button == 0)
       {
-        return sendUpdate(evt, "input");
+        return sendUpdate(evt, "input", "scrub");
       }
       evt.cancelBubble=true;
       return false;
@@ -75,7 +82,7 @@ export class SeekBarExperimental extends TatorElement {
     var releaseMouse=function(evt)
     {
       console.info("RELEASE MOUSE.");
-      this._active = false;
+      that._active = false;
       clearInterval(that._periodicCheck);
       document.removeEventListener("mouseup",
                                    releaseMouse);
@@ -120,7 +127,10 @@ export class SeekBarExperimental extends TatorElement {
 
     this.loadProgress = document.createElement("div");
     this.loadProgress.setAttribute("class", "range-loaded");
+    this.notSelectLoadProgress = document.createElement("div");
+    this.notSelectLoadProgress.setAttribute("class", "blue-iris-range-loaded");
     this.bar.appendChild(this.loadProgress);
+    this.bar.appendChild(this.notSelectLoadProgress);
 
     this._min = 0;
     this._max = 100;
@@ -170,9 +180,13 @@ export class SeekBarExperimental extends TatorElement {
     }
   }
 
-  updateVisuals()
+  updateVisuals(frame)
   {
-    const percentage = ((this._value-this._min)/(this._max - this._min))*100;
+    var frameToUse = frame;
+    if (frame == undefined) {
+      frameToUse = this._value;
+    }
+    const percentage = ((frameToUse-this._min)/(this._max - this._min))*100;
     if (percentage > 100 || percentage < 0) {
       this.handle.style.display = "none";
     }
@@ -214,8 +228,17 @@ export class SeekBarExperimental extends TatorElement {
 
   onBufferLoaded(loadedPercentage)
   {
+    if (loadedPercentage > 0.999) {
+      this.notSelectLoadProgress.style.display = "none";
+      this.loadProgress.style.display = "block";
+    }
+    else {
+      this.notSelectLoadProgress.style.display = "block";
+      this.loadProgress.style.display = "none";
+    }
     this._loadedPercentage = loadedPercentage;
     this.loadProgress.style.width=`${loadedPercentage * 100}%`;
+    this.notSelectLoadProgress.style.width=`${loadedPercentage * 100}%`;
   }
 
   onDemandLoaded(evt)

@@ -12,6 +12,7 @@ export class ConcatDownloadManager
     this._workerMap = new Map();
     this._mediaMap = new Map();
     this._startBiasMap = new Map();
+    this._bufferPercentMap = new Map();
     for (let idx = 0; idx < media_objects.length; idx++)
     {
       // @TODO sort media by res, take out extras, etc. 
@@ -31,6 +32,7 @@ export class ConcatDownloadManager
                           this_worker);
       this._mediaMap.set(timestampOffset,
                          media_objects[idx]);
+      this._bufferPercentMap.set(timestampOffset, 0);
     }
   }
 
@@ -271,6 +273,13 @@ export class ConcatDownloadManager
         {
           if (msg.data["buf_idx"] == this._parent._scrub_idx)
           {
+            this._bufferPercentMap.set(timestampOffset, msg.data["percent_complete"]);
+            let sumPercent = 0;
+            for (const percent of this._bufferPercentMap.values()) {
+              sumPercent += percent;
+            }
+            sumPercent = sumPercent / this._bufferPercentMap.size;
+
             // Report overall percentage given total video length of current selected region.
             let ranges = video_buffer._buffer.buffered;
             const video_time = video_buffer._buffer.currentTime;
@@ -278,10 +287,9 @@ export class ConcatDownloadManager
             {
               if (video_time <= ranges.end(idx))
               {
-                const overall_percentage = ranges.end(idx)/this._parent._numSeconds;
                 this._parent.dispatchEvent(new CustomEvent("bufferLoaded",
                                               {composed: true,
-                                                detail: {"percent_complete":overall_percentage}
+                                                detail: {"percent_complete":sumPercent}
                                               }));
               }
             }
