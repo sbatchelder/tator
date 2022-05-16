@@ -682,13 +682,6 @@ export class EntityTimeline extends BaseTimeline {
       .join("g")
         .attr("transform", `translate(0,${startOfMainLineGraph})`);
 
-    this._mainLineText = this._mainLineG.append("text")
-      .attr("x", 4)
-      .attr("y", this._mainLineHeight / 2)
-      .attr("dy", "0.35em")
-      .attr("fill", "#fafafa")
-      .attr("opacity", "0.0");
-
     this._mainLineG.append("clipPath")
       .attr("id", d => d.clipId.id)
       .append("rect")
@@ -713,6 +706,16 @@ export class EntityTimeline extends BaseTimeline {
         .attr("transform", `translate(0,${this._mainLineHeight})`)
         .attr("xlink:href", d => d.pathId.href)
         .style("stroke-dasharray", ("1, 2"));
+
+    this._mainLineTextBackground = this._mainLineG.append("rect")
+        .attr("opacity", "0.0");
+
+    this._mainLineText = this._mainLineG.append("text")
+      .attr("x", 4)
+      .attr("y", this._mainLineHeight / 2)
+      .attr("dy", "0.35em")
+      .attr("fill", "#fafafa")
+      .attr("opacity", "0.0");
 
     this._mainFrameLine = this._mainSvg.append("line")
       .attr("stroke", "#fafafa")
@@ -785,12 +788,23 @@ export class EntityTimeline extends BaseTimeline {
   _highlightMainLine(selectedName) {
 
     this._mainLineG.selectAll("use").join("use")
-      .attr("opacity", d => d.name === selectedName ? "1.0" : "0.7")
+      .attr("opacity", d => d.name === selectedName ? "0.7" : "0.4")
       .attr("stroke", d => d.name === selectedName ? "#fafafa" : "#797991")
       .attr("stroke-width", d => d.name === selectedName ? 1.5 : 0.5)
       .style("stroke-dasharray", d => d.name === selectedName ? null : ("1, 2"));
 
-    this._mainLineText.attr("opacity", "1.0").text(selectedName);
+    this._mainLineText
+      .attr("opacity", "1.0")
+      .text(selectedName);
+
+    var textBBox = this._mainLineText.node().getBBox();
+
+    this._mainLineTextBackground.attr("opacity", "0.5")
+    this._mainLineTextBackground.attr("x", textBBox.x - textBBox.width / 4);
+    this._mainLineTextBackground.attr("y", textBBox.y);
+    this._mainLineTextBackground.attr("width", textBBox.width + textBBox.width / 2);
+    this._mainLineTextBackground.attr("height", textBBox.height);
+    this._mainLineTextBackground.attr("fill", "#151b28");
   }
 
   /**
@@ -805,6 +819,8 @@ export class EntityTimeline extends BaseTimeline {
       .style("stroke-dasharray", "1, 2");
 
     this._mainLineText.attr("opacity", "0");
+
+    this._mainLineTextBackground.attr("opacity", "0");
   }
 
   /**
