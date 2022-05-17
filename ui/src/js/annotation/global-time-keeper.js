@@ -136,6 +136,14 @@ export class GlobalTimeKeeper extends HTMLElement {
     this._channelGaps = {}; // Indexed by channel index
     this._channelTimeline = {}; // Indexed by channel index
 
+    if (parentMedia.summaryLevel != undefined) {
+      this._scrubInterval = parentMedia.summaryLevel * globalFPS;
+    }
+    else {
+      this._scrubInterval = 1;
+    }
+
+
     // Loop over the media and figure out how these media are stitched together.
     // Also check each media FPS is the same as the global FPS
     // Also check the name is in the correct timebased format
@@ -181,6 +189,14 @@ export class GlobalTimeKeeper extends HTMLElement {
     for (let channelIndex = 0; channelIndex < this._mediaChannelMap.length; channelIndex++) {
       this._createChannelGlobalTimeline(channelIndex);
     }
+  }
+
+  /**
+   * @precondition init() must have been executed
+   * @return {Integer} Number of frames between ticks when scrubbing
+   */
+  getScrubInterval() {
+    return this._scrubInterval;
   }
 
   /**

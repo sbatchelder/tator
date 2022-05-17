@@ -62,6 +62,11 @@ export class SeekBarExperimental extends TatorElement {
                                     that._loadedPercentage);
 
         var frame = Math.round((percentage * (that._max - that._min) + that._min));
+        if (updateType == "scrub") {
+          // Snap to the nearest scrub interval
+          frame = Math.round(frame / that._scrubInterval) * that._scrubInterval;
+        }
+
         that.value = frame;
       }
       that.dispatchEvent(
@@ -134,6 +139,7 @@ export class SeekBarExperimental extends TatorElement {
 
     this._min = 0;
     this._max = 100;
+    this._scrubInterval = 1;
     this._value = 0;
 
     this.bar.addEventListener("mouseover", (evt) => {
@@ -206,11 +212,11 @@ export class SeekBarExperimental extends TatorElement {
     switch(name)
     {
       case 'min':
-      this._min = Number(newValue);
-      break;
+        this._min = Number(newValue);
+        break;
       case 'max':
-      this._max = Number(newValue);
-      break;
+        this._max = Number(newValue);
+        break;
     }
     this.updateVisuals();
   }
@@ -271,6 +277,10 @@ export class SeekBarExperimental extends TatorElement {
     else {
       this.onBufferLoaded(percentage);
     }
+  }
+
+  setScrubInterval(scrubInterval) {
+    this._scrubInterval = scrubInterval;
   }
 
   static get observedAttributes() { return ['min', 'max']; }

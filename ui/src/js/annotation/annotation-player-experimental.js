@@ -760,6 +760,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoSegmentSelector.addEventListener("newFrameRange", evt => {
       this._slider.setAttribute("min", evt.detail.start);
       this._slider.setAttribute("max", evt.detail.end);
+      this._slider.setScrubInterval(this._timeKeeper.getScrubInterval());
     });
 
     this._videoTimeline.addEventListener("input", evt => {
@@ -769,6 +770,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
     this._videoTimeline.addEventListener("newFrameRange", evt => {
       this._slider.setAttribute("min", evt.detail.start);
       this._slider.setAttribute("max", evt.detail.end);
+      this._slider.setScrubInterval(this._timeKeeper.getScrubInterval());
     });
 
     this._entityTimeline.addEventListener("selectFrame", evt => {
@@ -1151,6 +1153,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._slider.setAttribute("min", 0);
     this._slider.setAttribute("max", this._lastGlobalFrame);
+    this._slider.setScrubInterval(this._timeKeeper.getScrubInterval());
     this._slider.setStyle("blue-iris-range-div", "blue-iris-range-loaded");
 
     this._videoTimeline.style.display = "none";
@@ -1196,6 +1199,7 @@ export class AnnotationPlayerExperimental extends TatorElement {
 
     this._slider.setAttribute("min", this._playWindowInfo.globalStartFrame);
     this._slider.setAttribute("max", this._playWindowInfo.globalEndFrame);
+    this._slider.setScrubInterval(this._timeKeeper.getScrubInterval());
     this._slider.setStyle("range-div", "range-loaded");
 
     this._setTimeControlStyle();
