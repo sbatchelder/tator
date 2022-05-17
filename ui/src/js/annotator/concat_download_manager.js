@@ -13,6 +13,7 @@ export class ConcatDownloadManager
     this._mediaMap = new Map();
     this._startBiasMap = new Map();
     this._bufferPercentMap = new Map();
+    this._downloadIndex = -1;
     for (let idx = 0; idx < media_objects.length; idx++)
     {
       // @TODO sort media by res, take out extras, etc. 
@@ -66,17 +67,30 @@ export class ConcatDownloadManager
     return biasSum;
   }
 
+  _startNextDownload() {
+    this._downloadIndex += 1;
+    let keys = [...this._workerMap.keys()].sort((a,b)=>{return a-b;});
+    if (this._downloadIndex >= keys.length) {
+      // All workers done downloading their scrub buffer
+      return;
+    }
+
+    var msg = Object.assign(this._startMessage);
+    msg['media_files'] = this._mediaMap.get(keys[this._downloadIndex]).media_files.streaming;
+
+    this._workerMap.get(keys[this._downloadIndex]).postMessage(this._startMessage);
+  }
+
   // Forward a message to the underlying worker
   postMessage(msg)
   {
     if (msg.type == 'start')
     {
-      let keys = [...this._workerMap.keys()].sort((a,b)=>{return a-b;});
-      for (let idx = 0; idx < keys.length; idx++)
-      {
-        msg['media_files'] = this._mediaMap.get(keys[idx]).media_files.streaming;
-        console.info(`Sending ${JSON.stringify(msg)} to ${keys[idx]}`);
-        this._workerMap.get(keys[idx]).postMessage(msg);
+      this._startMessage = msg;
+      let concurrent_downloads = 4;
+      while (concurrent_downloads > 0) {
+        this._startNextDownload();
+        concurrent_downloads -= 1;
       }
     }
     else if (msg.type == "seek")
@@ -134,6 +148,7 @@ export class ConcatDownloadManager
     if (type == "finished")
     {
       console.info("Stopping download worker.");
+      this._startNextDownload();
     }
     else if (type == "seek_result")
     {
