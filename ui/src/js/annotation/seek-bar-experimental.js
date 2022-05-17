@@ -29,9 +29,9 @@ export class SeekBarExperimental extends TatorElement {
           that.parentElement.offsetWidth;
         startX = that.parentElement.offsetLeft;
       }
-      const percentage = ((evt.clientX-startX)/
-                          width);
-      that.value = Math.round((percentage * (that._max - that._min) + that._min));
+
+      var frame = Math.round((evt.offsetX / that.bar.offsetWidth) *  (that._max - that._min)) + that._min;
+      that.value = frame;
       that.dispatchEvent(
         new CustomEvent("change",
                         {composed: true,

@@ -799,7 +799,7 @@ export class EntityTimeline extends BaseTimeline {
 
     var textBBox = this._mainLineText.node().getBBox();
 
-    this._mainLineTextBackground.attr("opacity", "0.5")
+    this._mainLineTextBackground.attr("opacity", "0.2")
     this._mainLineTextBackground.attr("x", textBBox.x - textBBox.width / 4);
     this._mainLineTextBackground.attr("y", textBBox.y);
     this._mainLineTextBackground.attr("width", textBBox.width + textBBox.width / 2);
