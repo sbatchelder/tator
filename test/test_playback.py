@@ -285,7 +285,6 @@ def test_buffer_usage_multi(page_factory, project, multi_rgb):
   page.wait_for_selector('video-canvas')
   canvas = page.query_selector_all('video-canvas')
   display_ctrl = page.query_selector('#frame_num_ctrl')
-  play_button = page.query_selector('play-button')
   seek_handle = page.query_selector('seek-bar .range-handle')
 
 
@@ -294,11 +293,11 @@ def test_buffer_usage_multi(page_factory, project, multi_rgb):
   _wait_for_color(page, canvas[0], 0, timeout=30)
   _wait_for_color(page, canvas[1], 0, timeout=30)
 
-  play_button.click()
+  page.keyboard.press(" ")
   _wait_for_color(page, canvas[0], 1, timeout=30)
   _wait_for_color(page, canvas[1], 1, timeout=30)
   # Pause the video
-  play_button.click()
+  page.keyboard.press(" ")
   _wait_for_color(page, canvas[0], 0, timeout=30)
   _wait_for_color(page, canvas[1], 0, timeout=30)
 
