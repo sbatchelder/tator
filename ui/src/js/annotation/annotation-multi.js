@@ -2,7 +2,7 @@ import { TatorElement } from "../components/tator-element.js";
 import { Utilities } from "../util/utilities.js";
 import { guiFPS } from "../annotator/video.js";
 import { RATE_CUTOFF_FOR_ON_DEMAND } from "../annotator/video.js";
-import { handle_video_error, PlayInteraction } from "./annotation-common.js";
+import { handle_video_error, handle_decoder_error, PlayInteraction } from "./annotation-common.js";
 
 export class AnnotationMulti extends TatorElement {
   constructor() {
@@ -777,6 +777,13 @@ export class AnnotationMulti extends TatorElement {
 
       // This is the array of all
       this._fps[idx] = video_info.fps;
+      this._videos[idx].addEventListener("codecNotSupported", (evt) => {
+        if (alert_sent == false)
+        {
+          handle_decoder_error(evt, this._shadow);
+          alert_sent = true;
+        }
+      });
       if (idx == this._longest_idx)
       {
         let prime = this._videos[idx];
