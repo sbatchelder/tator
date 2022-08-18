@@ -640,7 +640,6 @@ export class TatorVideoDecoder {
     let p_func = (resolve, reject) => 
     {
       this.reset().then(() => {
-        this.buffered.print(`${this._name} RESET`);
         resolve();
       });
     };
