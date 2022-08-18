@@ -219,10 +219,18 @@ class TatorVideoManager {
     return false;
   }
 
+  _returnFrame(frame)
+    {
+    frame.close();
+    this._codec_worker.postMessage({"type": "frameReturn"})
+    }
+
   _frameReady(msg)
   {
     // If there is a frame handler callback potentially avoid 
     // internal buffering.
+    msg.data.returnFrame = () => {this._returnFrame(msg.data);};
+    //console.info(`${performance.now()} ${this._name} Frame @ ${msg.cursor} Ready`);
     if (this.onFrame && this._playing == true)
     {
       this._current_cursor = msg.data.cursor;
@@ -233,7 +241,7 @@ class TatorVideoManager {
     }
 
     // If the client didn't claim the frame, return the memory
-    msg.data.close();
+    msg.data.returnFrame();
   }
 
   _imageReady(image)
