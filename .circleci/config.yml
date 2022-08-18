@@ -135,7 +135,7 @@ jobs:
     - run:
         name: Install Tator
         command: |
-          ssh lightsail 'cd tator && ./install.sh';
+          ssh lightsail 'export DOMAIN_ALIAS='"'localhost'"';cd tator && ./install.sh';
     - run:
         name: Set public IP as primary domain
         command: |
@@ -246,14 +246,6 @@ workflows:
         filters:
           tags:
             only: /.*/
-    - update-earlyaccess:
-        requires:
-        - build-docker-images
-        context: cd
-        filters:
-          branches:
-            only:
-            - master
     - setup-lightsail:
         context: cvisionai
         filters:
@@ -288,6 +280,15 @@ workflows:
         filters:
           tags:
             only: /.*/
+    - update-earlyaccess:
+        requires:
+        - rest-tests
+        - tator-py-tests
+        context: cd
+        filters:
+          branches:
+            only:
+            - master
     - cleanup-lightsail:
         requires:
         - rest-tests
