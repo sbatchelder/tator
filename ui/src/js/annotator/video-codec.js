@@ -164,11 +164,17 @@ class TatorVideoManager {
         this._checked = true;
         VideoDecoder.isConfigSupported({'codec': this._codec_string, codedWidth: 1280,codedHeight: 720}).then(support =>
         {
-          if (support.supported != true)
+          let chrome_bug = false;
+          if (this._codec_string.indexOf("av01") >= 0 && navigator.userAgent.indexOf('Chrome') >= 0 && navigator.userAgent.indexOf('Edg/') == -1)
+          {
+            chrome_bug = true;
+          }
+          if (support.supported != true || chrome_bug == true)
           {
             this._parent._canvas.dispatchEvent(new CustomEvent("codecNotSupported",
                                     {composed: true,
-                                      detail: {"codec": this._codec_string}}));
+                                      detail: {"codec": this._codec_string,
+                                               "chrome_bug": chrome_bug}}));
           }
         } 
       );

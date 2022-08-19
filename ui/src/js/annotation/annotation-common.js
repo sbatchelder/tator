@@ -55,13 +55,19 @@ export function handle_decoder_error(evt, root)
   let msg_html = "";
   let errorType = "";
 
-  const edge_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://apps.microsoft.com/store/detail/av1-video-extension/9MVZQVXJBQ9V?hl=en-us&gl=US'>Microsoft Edge</a></span>`;
+  const edge_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://apps.microsoft.com/store/detail/av1-video-extension/9MVZQVXJBQ9V?hl=en-us&gl=US'>plug-in</a></span>`;
   const chrome_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://www.google.com/chrome/'>Google Chrome</a></span>`;
+  const early_access_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://earlyaccess.tator.io'>Early Access</a></span>`;
   msg_html += "<span class='text-normal' style='line-height:1.7rem'>";
   msg_html += `Your browser does not support the codec required by this video "${evt.detail.codec}"`;
-  if (evt.detail.codec.indexOf("av01") >= 0)
+  if (evt.detail.codec.indexOf("av01") >= 0 && evt.detail.chrome_bug == false)
   {
     msg_html += `<br>To resolve this please utilize ${chrome_link} or install the appropriate plug-in for ${edge_link}.`;
+  }
+  else if (evt.detail.chrome_bug == true)
+  {
+    msg_html += `<br /><br />Please use Microsoft Edge with the appropriate ${edge_link}.`;
+    msg_html += `<br />Alternatively, one can continue to use ${chrome_link} with the ${early_access_link} release of Tator.`;
   }
   msg_html += "</span>";
   let modalError = document.createElement("modal-notify");
