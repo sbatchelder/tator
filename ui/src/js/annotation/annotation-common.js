@@ -55,9 +55,9 @@ export function handle_decoder_error(evt, root)
   let msg_html = "";
   let errorType = "";
 
-  const edge_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://apps.microsoft.com/store/detail/av1-video-extension/9MVZQVXJBQ9V?hl=en-us&gl=US'>plug-in</a></span>`;
-  const chrome_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://www.google.com/chrome/'>Google Chrome</a></span>`;
-  const early_access_link=`<span class='text-gray'><a class='nav__link' target='_new' href='https://earlyaccess.tator.io'>Early Access</a></span>`;
+  const edge_link=`<span class='text-purple'><a class='nav__link' target='_new' href='https://apps.microsoft.com/store/detail/av1-video-extension/9MVZQVXJBQ9V?hl=en-us&gl=US'>plug-in</a></span>`;
+  const chrome_link=`<span class='text-purple'><a class='nav__link' target='_new' href='https://www.google.com/chrome/'>Google Chrome</a></span>`;
+  const early_access_link=`<span class='text-purple'><a class='nav__link' target='_new' href='https://earlyaccess.tator.io'>Early Access</a></span>`;
   msg_html += "<span class='text-normal' style='line-height:1.7rem'>";
   msg_html += `Your browser does not support the codec required by this video "${evt.detail.codec}"`;
   if (evt.detail.codec.indexOf("av01") >= 0 && evt.detail.chrome_bug == false)
