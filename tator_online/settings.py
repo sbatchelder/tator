@@ -336,3 +336,9 @@ if SAML_ENABLED:
         'ENTITY_ID': f"{PROTO}://{MAIN_HOST}/saml2_auth/acs/",
         'TOKEN_REQUIRED': False,
     }
+
+
+# Tracking information
+TRACKING_ENABLED = os.getenv("TRACKING_ENABLED")
+TRACKING_ENABLED = TRACKING_ENABLED and TRACKING_ENABLED.lower() == "true"
+TRACKING_ID = os.getenv("TRACKING_ID")

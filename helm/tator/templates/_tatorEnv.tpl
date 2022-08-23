@@ -263,3 +263,15 @@
 {{- end }}
 {{- end }}
 {{- end }}
+- name: TRACKING_ENABLED
+{{- if hasKey .Values "tracking" }}
+{{- if .Values.tracking.enabled }}
+value: "TRUE"
+{{- end }}
+{{- end }}
+- name: TRACKING_ID
+{{- if hasKey .Values "tracking" }}
+{{- if .Values.tracking.id }}
+value: {{ .Values.tracking.id }}
+{{- end }}
+{{- end }}

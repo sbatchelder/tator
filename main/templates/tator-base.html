@@ -3,12 +3,26 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <title>{% settings_value "TRACKING_ID" %}</title>
+    
     <meta charset="UTF-8" />
     <link rel="stylesheet" type="text/css" href={% static "components.css" %} />
     <script src={% static "components.js" %}></script>
     <script src={% static "util.js" %}></script>
     {% block head %}
     {% endblock head %}
+    
+    {% if settings_value() %}
+      <!-- Google tag (gtag.js) -->
+      <script async src="https://www.googletagmanager.com/gtag/js?id={% tracking_id  %}"></script>
+      <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', '{% tracking_id %}');
+      </script>
+    {% endif %}
   </head>
 <body>
   {% block body %}
