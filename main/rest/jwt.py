@@ -110,6 +110,7 @@ class JwtGatewayAPI(APIView):
                 # Authorization flow successful, get userinfo
                 jwt_payload = JWTUtils.parse_token(id_token)[1]
             except Exception as e:
+                logger.warning("Caught exception while validating tokens", exc_info=True)
                 return Response({"message": "invalid token"}, status=status.HTTP_404_NOT_FOUND)
         else:
             return Response({"message": "page not found"}, status=status.HTTP_404_NOT_FOUND)
