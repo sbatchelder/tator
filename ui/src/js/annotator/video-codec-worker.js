@@ -1,5 +1,6 @@
 
 import * as MP4Box from "./mp4box.all.js";
+import { CTRL_SIZE, VideoBufferManager } from "./video-buffer-manager.js";
 import { TatorTimeRanges } from "./video-codec.js";
 
 const MAX_DECODED_FRAMES_PER_DECODER = 8;
@@ -131,6 +132,7 @@ class TatorVideoBuffer {
     this._pendingSeek = null;
     this._pendingEncodedFrames = [];
     this._framesOut = 0;
+    this._idle = true; // initialize in idle mode
 
     this._bufferedRegions = new TatorTimeRanges();
 
@@ -142,7 +144,36 @@ class TatorVideoBuffer {
     this._current_cursor = 0.0;
     this._current_duration = 0.0;
 
+    // Idle state logic
+    this._lastIdleScan = 0;
+    this._lastAppend = 0;
+
     this._ready_frames=[];
+  }
+
+  _setIdle(val)
+  {
+    clearTimeout(this._idleTimeout);
+    this._idle = val;
+
+    if (val == true)
+    {
+      // Re-scan file on pauses to catch any keyframes
+      setTimeout(() =>
+      {
+        if (this.scrubbing || this._playing)
+        {
+          this._setIdle(false);
+        } 
+        else if (this._lastIdleScan <= this._lastAppend)
+        {
+          this.activeMp4File.stop();
+          this.activeMp4File.seek(0);
+          this.activeMp4File.start();
+          this._lastIdleScan = performance.now();
+        }
+      }, 100);
+    }
   }
 
   _mp4OnError(e)
@@ -204,6 +235,7 @@ class TatorVideoBuffer {
     this._trackHeight = Math.round(info.tracks[0].track_height);
     this._timescaleMap.set(timestampOffset,info.tracks[0].timescale);
     this._playing = false;
+    this.scrubbing = false;
     this._lastSeek = 0;
 
     // The canvas is used to render seek frames so we don't use up 
@@ -222,7 +254,8 @@ class TatorVideoBuffer {
         codec: this._codecString,
         codedWidth: Number(this._trackWidth),
         codedHeight: Number(this._trackHeight),
-        description: description});
+        description: description,
+        optimizeForLatency: true});
     }
     else
     {
@@ -243,10 +276,14 @@ class TatorVideoBuffer {
       this._encoderConfig.set(timestampOffset,{
         codec: this._codecString,
         codedWidth: Number(this._trackWidth),
-        codedHeight: Number(this._trackHeight)});
+        codedHeight: Number(this._trackHeight),
+        optimizeForLatency: true});
     }
-    console.info(JSON.stringify(info.tracks[0]));
-    console.info(`${this._name} is configuring decoder = ${JSON.stringify(this._encoderConfig.get(timestampOffset))}`);
+    if (this._sentReady == undefined)
+    {
+      console.info(JSON.stringify(info.tracks[0]));
+      console.info(`${this._name} is configuring decoder = ${JSON.stringify(this._encoderConfig.get(timestampOffset))}`);
+    }
     try
     {
       this._videoDecoder.configure(this._encoderConfig.get(timestampOffset));
@@ -259,10 +296,14 @@ class TatorVideoBuffer {
             error: this._frameError.bind(this)});
       this._videoDecoder.configure(this._encoderConfig.get(timestampOffset));
     }
-    console.info(`${this._name} decoder reports ${this._videoDecoder.state}`);
 
-    console.info(JSON.stringify(info));
+    if (this._sentReady == undefined)
+    {
+      this._sentReady = true;
+      console.info(`${this._name} decoder reports ${this._videoDecoder.state}`);
 
+      console.info(JSON.stringify(info));
+    }
     postMessage({"type": "ready",
                  "data": info,
                  "timestampOffset": timestampOffset});
@@ -271,7 +312,7 @@ class TatorVideoBuffer {
   _mp4Samples(track_id, timestampOffset, samples)
   {
     let muted = true;
-    //console.info(`${this._name} GOT=${samples.length} ${timestampOffset} ${this._framesOut}`);
+    //console.info(`${performance.now()} ${this._name} GOT=${samples.length} ${timestampOffset} ${this._framesOut} ${this._idle}`);
     let min_cts = Number.MAX_VALUE;
     let max_cts = Number.MIN_VALUE;
     const relative_cursor = this._current_cursor - timestampOffset;
@@ -349,7 +390,7 @@ class TatorVideoBuffer {
     const timestampOffsetInCtx=Math.floor(timestampOffset*this._timescaleMap.get(timestampOffset));
     //console.info(`${this._name}: TIMESTAMP ${timestampOffset} is ${timestampOffsetInCtx}`);
     //console.info(`${performance.now()}: Calling mp4 samples, count=${samples.length} muted=${muted} cursor_ctx=${cursor_in_ctx}`);
-    if (muted == false || this._playing == true || this.keyframeOnly == true)
+    if (this._idle == false && (muted == false || this._playing == true || this.keyframeOnly == true))
     {
       this._seek_in_progress=true;
       let finished=false;      
@@ -390,21 +431,37 @@ class TatorVideoBuffer {
         {
           const sample_cts = samples[idx].cts;
           let push_it = () => {
-            this._framesOut++;
             this._frameInfoMap.set(Math.floor(timestampOffsetInCtx+sample_cts),
                                   timestampOffset);
-            this._videoDecoder.decode(chunk);
+            try
+            {
+              //console.info(`${performance.now()} ${this._name}: Decode ${sample_cts}`);
+              this._videoDecoder.decode(chunk);
+              this._sentFrames++;
+            }
+            catch (evt)
+            {
+              console.warn(`${this._name}: Failed to decode ${sample_cts}: ${evt}`);
+            }
           };
-          if (this._framesOut < MAX_DECODED_FRAMES_PER_DECODER)
+          if (this._framesOut+this._videoDecoder.decodeQueueSize < MAX_DECODED_FRAMES_PER_DECODER && this._pendingEncodedFrames.length == 0)
           {
             push_it();
           }
           else
           {
             //console.info(`Deferring ${sample_cts}`);
-            //console.info(`${performance.now()} ${this._name}: Decode Governor engaged FO=${this._framesOut}.`)
+            //console.info(`${performance.now()} ${this._name}: Decode ${sample_cts} Governor engaged FO=${this._framesOut}.`)
             this._pendingEncodedFrames.push(push_it);
-          }
+            if (this._framesOut+this._videoDecoder.decodeQueueSize < MAX_DECODED_FRAMES_PER_DECODER)
+            {
+              let pending = this._pendingEncodedFrames.shift();
+              if (pending)
+              {
+                pending();
+              }
+            }
+        };
         }
         catch(e)
         {
@@ -422,30 +479,23 @@ class TatorVideoBuffer {
         if (samples[idx].is_sync)
         {
           this._keyframeMap.get(timestampOffset).push(samples[idx].cts);
-          //console.info(`${idx} > ${start_idx}, ${this._playing==false}, ${this.keyframeOnly}`);
+          //console.info(`${idx} > ${start_idx}, Playing=${this._playing}, KFO=${this.keyframeOnly}`);
           if (this._playing == false && (idx > start_idx || this.keyframeOnly == true))
           {
-            //console.info("Bombing out!");
-            if (this.keyframeOnly == true)
+            //console.info(`${performance.now()} ${this._name}: Breaking out of loop handler ${idx}, ${start_idx}, QS=${this._videoDecoder.decodeQueueSize}`);
+            // drain the pending queue before bailing
+            let pending = this._pendingEncodedFrames.shift();
+            while (pending)
             {
-              this._mp4FileMap.get(timestampOffset).stop(); // Stop event handler
+              pending();
+              pending = this._pendingEncodedFrames.shift();
             }
+            this._videoDecoder.flush().catch(e=>{}); // NOTE: FLUSH will unconfigure the decoder and require keyframe + in-order decode again...
+            this._mp4FileMap.get(timestampOffset).stop(); // Stop event handler
+            this._setIdle(true);
             break; // If we get to the next key frame we decoded enough.
           }
         }
-      }
-
-      // In seek cases wait for the whole GOP to decode.
-      if (this._playing == false)
-      {
-        //console.info("Forcing a flush to get all frames from this GOP");
-        this._videoDecoder.flush()
-        .then(()=>{
-          //console.info("Completed GOP");
-        })
-        .catch((e)=>{
-          //console.warn(e)
-        });
       }
 
       // Handle all samples for processing keyframes and what not at the end of decoding
@@ -487,6 +537,7 @@ class TatorVideoBuffer {
         {
           if (this._keyframeMap.get(timestampOffset).push(samples[idx].cts))
           {
+            // If we already knew about this keyframe we are done processing this sample set
             break;
           }
         }
@@ -506,15 +557,17 @@ class TatorVideoBuffer {
     {
       for (let idx = 0; idx < this._bufferedRegions.length; idx++)
       {
-        //console.info(`${this._name}: Pending Seek to ${this._pendingSeek} ${this._bufferedRegions.start(idx)} to ${this._bufferedRegions.end(idx)}`);
+        console.info(`${this._name}: Pending Seek to ${this._pendingSeek} ${this._bufferedRegions.start(idx)} to ${this._bufferedRegions.end(idx)}`);
         if (this._pendingSeek > this._bufferedRegions.start(idx) && this._pendingSeek <= this._bufferedRegions.end(idx))
         {
           const seek_value = this._pendingSeek;
           this._pendingSeek = null;
           this._setCurrentTime(seek_value, false);
+          break;
         }
       }
     }
+    //console.info(`${performance.now()}: ${this._name}: mp4Samples ended`);
   }
 
   pause()
@@ -523,11 +576,13 @@ class TatorVideoBuffer {
     this._framesOut = 0;
     this._playing = false;
     this._frameInfoMap = new Map(); // clear on pause
-    this.activeMp4File.stop();
+    this._setIdle(true);
   }
 
   play()
   {
+    this._setIdle(false);
+    this._frameIdx = 0;
     this._pendingSeek = null;
     //console.info(`PLAYING VIDEO ${this._current_cursor}`);
     if (this._videoDecoder.state == 'closed')
@@ -612,14 +667,30 @@ class TatorVideoBuffer {
   {
     this._framesOut--;
     let pending = this._pendingEncodedFrames.shift();
-    if (this._playing && pending)
+    if (pending)
     {
       pending();
     }
   }
 
+  _clearAllPending()
+  {
+    this._framesOut = 0;
+    this._pendingEncodedFrames = [];
+    try
+    {
+      this._videoDecoder.reset();
+    }
+    catch
+    {
+      console.warn("Attempted to reset a closed codec.");
+    }
+  }
+
   _frameReady(frame)
   {
+    this._framesOut++;
+    //console.info(`${performance.now()} ${this._name}: GOT FRAME ${frame.timestamp}`);
     if (this._frameInfoMap.has(frame.timestamp) == false)
     {
       // Frames came in past the reset
@@ -643,8 +714,16 @@ class TatorVideoBuffer {
         this._frameReturn();
         return;
       }
+      console.info()
+      if (this._frameIdx % this.frameIncrement != 0)
+      {
+        frame.close();
+        this._frameReturn();
+        this._frameIdx = (this._frameIdx + 1) % this.frameIncrement;
+        return;
+      }
       this._current_cursor = (frame.timestamp / timeScale);
-      //console.info(`${performance.now()}: Sending ${this._ready_frames.length}`);
+      //console.info(`${performance.now()}: Sending ${frame.timestamp}`);
       postMessage({"type": "frame",  
                   "data": frame,
                   "cursor": this._current_cursor,
@@ -652,6 +731,7 @@ class TatorVideoBuffer {
                   "timestampOffset": timestampOffset},
                   [frame]
                   ); // transfer frame copy to primary UI thread
+      this._frameIdx = (this._frameIdx + 1) % this.frameIncrement;
       if (this._switchTape)
       {
         this._mp4FileMap.get(this._oldTape).stop();
@@ -673,18 +753,36 @@ class TatorVideoBuffer {
       const timestamp = frame.timestamp;
       // Make an ImageBitmap from the frame and release the memory
       // Send all decoded frames to draw UI
-      this._canvasCtx.drawImage(frame,0,0);
-      let image = this._canvas.transferToImageBitmap(); //GPU copy of frame
-      //console.info(`${this._name}@${this._current_cursor}: Publishing @ ${frame.timestamp/timeScale}-${(frame.timestamp+frameDelta)/timeScale} KFO=${this.keyframeOnly}`);
-      frame.close();
-      this._framesOut--;
-      postMessage({"type": "image",
-                  "data": image,
-                  "timestamp": timestamp,
-                  "timescale": timeScale,
-                  "frameDelta": frameDelta,
-                  "seconds": timestamp/timeScale},
-                  image);
+      if (this._bufferManager == null)
+      {
+        // Allocate enough static space for 55 frames
+        this._bufferManager = new VideoBufferManager(frame.allocationSize(), 55);
+      }
+      let slot = this._bufferManager.getSlot();
+      if (slot == null)
+      {
+        // No slots, out of luck
+        frame.close();
+        return;
+      }
+      let image = new Uint8Array(slot, CTRL_SIZE);
+      frame.copyTo(image).then(() => {
+        //console.info(`${performance.now()}: ${this._name}@${this._current_cursor}: Publishing @ ${frame.timestamp/timeScale}-${(frame.timestamp+frameDelta)/timeScale} KFO=${this.keyframeOnly}`);
+        const width = frame.displayWidth;
+        const height = frame.displayHeight;
+        const format = frame.format;
+        frame.close();
+        this._frameReturn();
+        postMessage({"type": "image",
+                    "data": slot,
+                    "width": width,
+                    "height": height,
+                    "format": format,
+                    "timestamp": timestamp,
+                    "timescale": timeScale,
+                    "frameDelta": frameDelta,
+                    "seconds": timestamp/timeScale});
+      });
     }
   }
 
@@ -710,11 +808,12 @@ class TatorVideoBuffer {
   _setCurrentTime(video_time, informational, raw_video_time)
   {
     this._current_cursor = video_time;
-    //console.info(`${this._name} now @ ${this._current_cursor}: ${informational}`);
+    //console.info(`${performance.now()} ${this._name} now @ ${this._current_cursor}: ${informational}`);
     if (informational)
     {
       return;
     }
+    this._setIdle(false);
     let timescale = null;
     if (raw_video_time)
     {
@@ -747,10 +846,12 @@ class TatorVideoBuffer {
           this._videoDecoder = new VideoDecoder({
             output: this._frameReady.bind(this),
             error: this._frameError.bind(this)});
-          
         }
         this._videoDecoder.reset();
         this._videoDecoder.configure(this.activeCodecConfig);
+        this._framesOut = 0;
+        this._pendingEncodedFrames=[];
+        
         let nearest_keyframe = keyframe_info.thisSegment;
         mp4File.stop();
         //console.info(`${this._name}: COMMANDING MP4 SEEK ${search.key} ${video_time} ${nearest_keyframe/timescale}`);
@@ -769,7 +870,7 @@ class TatorVideoBuffer {
   // - Prior to adding video segments the mp4 header must be supplied first.
   appendBuffer(data, timestampOffset)
   {
-    
+    this._lastAppend = performance.now();
     //console.info(`${this._name}: Appending Data ${data.fileStart} ${data.byteLength} ${data.frameStart}`);
     if (data.fileStart == 0)
     {
@@ -780,19 +881,19 @@ class TatorVideoBuffer {
       if (data.frameStart != undefined && data.fileStart != mp4File.nextParsePosition)
       {
         const timescale=this._timescaleMap.get(timestampOffset);
-        console.info(`Setting dts bias to SF=${data.frameStart} FS=${data.fileStart} (was ${mp4File.nextParsePosition}) BIAS=${mp4File.dtsBias} ${mp4File.dtsBias/timescale}`);
+        //console.info(`Setting dts bias to SF=${data.frameStart} FS=${data.fileStart} (was ${mp4File.nextParsePosition}) BIAS=${mp4File.dtsBias} ${mp4File.dtsBias/timescale}`);
         mp4File.lastBoxStartPosition = data.fileStart;
         mp4File.nextParsePosition = data.fileStart;
         mp4File.dtsBias = Math.round(data.frameStart * timescale);
         mp4File.stop();
         mp4File.appendBuffer(data);
-        mp4File.seek(0); // Always go to 0 for this
-        mp4File.start();
+        this._setIdle(true);
       }
       else
       {
         mp4File.dtsBias = null;
         mp4File.appendBuffer(data);
+        this._setIdle(true);
       }
     }
 
@@ -939,7 +1040,7 @@ class TatorVideoBuffer {
       tempFile.lastBoxStartPosition = data.fileStart;
       tempFile.nextParsePosition = data.fileStart;
       tempFile.dtsBias = Math.round(data.frameStart * this._timescaleMap.get(timestampOffset));
-      console.info(`${this._name} TEMP Setting dts bias to FS=${data.fileStart} BIAS=${tempFile.dtsBias} ${tempFile.dtsBias/this._timescaleMap.get(timestampOffset)}`);
+      //console.info(`${this._name} TEMP Setting dts bias to FS=${data.fileStart} BIAS=${tempFile.dtsBias} ${tempFile.dtsBias/this._timescaleMap.get(timestampOffset)}`);
       tempFile.stop();
       tempFile.appendBuffer(data);
       tempFile.seek(0); // Always go to 0 for this
@@ -1073,8 +1174,20 @@ onmessage = function(e)
   {
     ref.keyframeOnly = msg.value;
   }
+  else if (msg.type == "scrubbing")
+  {
+    ref.scrubbing = msg.value;
+  }
   else if (msg.type == "frameReturn")
   {
     ref._frameReturn();
+  }
+  else if (msg.type == "clearAllPending")
+  {
+    ref._clearAllPending();
+  }
+  else if (msg.type == "frameIncrement")
+  {
+    ref.frameIncrement = msg.value;
   }
 }

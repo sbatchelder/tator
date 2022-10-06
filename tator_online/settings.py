@@ -38,7 +38,7 @@ else:
     USE_MIN_JS = False
 
 MAIN_HOST = os.getenv('MAIN_HOST')
-ALLOWED_HOSTS = [MAIN_HOST]
+ALLOWED_HOSTS = [MAIN_HOST, 'gunicorn-svc']
 ALIAS_HOSTS = os.getenv('ALIAS_HOSTS')
 if ALIAS_HOSTS:
     ALLOWED_HOSTS += ALIAS_HOSTS.split(',')
@@ -67,6 +67,7 @@ GRAPH_MODELS = {
     'group_models': True,
 }
 
+LOGIN_URL = "/redirect/login/"
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 AUTH_USER_MODEL = 'main.User'
@@ -325,7 +326,7 @@ if SAML_ENABLED:
     PROTO = "https" if REQUIRE_HTTPS else "http"
     SAML2_AUTH = {
         'METADATA_AUTO_CONF_URL': os.getenv("SAML_METADATA_URL"),
-        'DEFAULT_NEXT_URL': '/projects',
+        'DEFAULT_NEXT_URL': LOGIN_REDIRECT_URL,
         'CREATE_USER': True,
         'NEW_USER_PROFILE': {
             'USER_GROUPS': [],
@@ -336,3 +337,5 @@ if SAML_ENABLED:
         'ENTITY_ID': f"{PROTO}://{MAIN_HOST}/saml2_auth/acs/",
         'TOKEN_REQUIRED': False,
     }
+
+    SAML_SSO_URL = os.getenv("SAML_SSO_URL")
