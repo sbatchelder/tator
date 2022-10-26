@@ -50,6 +50,8 @@ logger = logging.getLogger(__name__)
 STATE_PROPERTIES = list(state_schema['properties'].keys())
 STATE_PROPERTIES.pop(STATE_PROPERTIES.index('media'))
 STATE_PROPERTIES.pop(STATE_PROPERTIES.index('localizations'))
+MAX_TO_MODIFY = 10000
+MAX_TO_RETRIEVE = 100000
 
 def _fill_m2m(response_data):
     # Get many to many fields.
@@ -94,6 +96,14 @@ class StateListAPI(BaseListView):
     def _get(self, params):
         t0 = datetime.datetime.now()
         qs = get_annotation_queryset(self.kwargs['project'], params, 'state')
+        count = qs.count()
+        if count > MAX_TO_RETRIEVE:
+            raise ValueError(
+                f"GET would return {count} states, but the maximum allowed number of returned "
+                f"objects in a single request is {MAX_TO_RETRIEVE}. Change your query to return "
+                f"fewer states at a time."
+            )
+
         response_data = list(qs.values(*STATE_PROPERTIES))
 
         t1 = datetime.datetime.now()
@@ -311,18 +321,24 @@ class StateListAPI(BaseListView):
     def _delete(self, params):
         qs = get_annotation_queryset(params['project'], params, 'state')
         count = qs.count()
-        if count > 0:
+        if MAX_TO_MODIFY >= count > 0:
             # Delete states.
             bulk_delete_and_log_changes(qs, params["project"], self.request.user)
             query = get_annotation_es_query(params['project'], params, 'state')
             TatorSearch().delete(self.kwargs['project'], query)
+        elif count > MAX_TO_MODIFY:
+            raise ValueError(
+                f"DELETE would delete {count} states, but the maximum allowed number of deleted "
+                f"objects in a single request is {MAX_TO_MODIFY}. Change your query to delete "
+                f"fewer states at a time."
+            )
 
         return {'message': f'Successfully deleted {count} states!'}
 
     def _patch(self, params):
         qs = get_annotation_queryset(params['project'], params, 'state')
         count = qs.count()
-        if count > 0:
+        if MAX_TO_MODIFY >= count > 0:
             new_attrs = validate_attributes(params, qs[0])
             bulk_update_and_log_changes(
                 qs, params["project"], self.request.user, new_attributes=new_attrs
@@ -330,6 +346,12 @@ class StateListAPI(BaseListView):
 
             query = get_annotation_es_query(params['project'], params, 'state')
             TatorSearch().update(self.kwargs['project'], qs[0].meta, query, new_attrs)
+        elif count > MAX_TO_MODIFY:
+            raise ValueError(
+                f"PATCH would update {count} states, but the maximum allowed number of updates in "
+                f"a single request is {MAX_TO_MODIFY}. Change your query to delete fewer states at "
+                f"a time."
+            )
 
         return {'message': f'Successfully updated {count} states!'}
 

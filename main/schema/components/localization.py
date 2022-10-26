@@ -183,6 +183,7 @@ localization_id_query = {
                 'type': 'integer',
                 'minimum': 1,
             },
+            "maxItems": 10000,
         },
         'state_ids': {
             'description': 'Array of parent state IDs for which localizations should be retrieved.',

@@ -44,6 +44,8 @@ from ._permissions import ProjectEditPermission
 logger = logging.getLogger(__name__)
 
 LOCALIZATION_PROPERTIES = list(localization_schema['properties'].keys())
+MAX_TO_MODIFY = 10000
+MAX_TO_RETRIEVE = 100000
 
 class LocalizationListAPI(BaseListView):
     """ Interact with list of localizations.
@@ -62,6 +64,14 @@ class LocalizationListAPI(BaseListView):
 
     def _get(self, params):
         qs = get_annotation_queryset(self.kwargs['project'], params, 'localization')
+        count = qs.count()
+        if count > MAX_TO_RETRIEVE:
+            raise ValueError(
+                f"GET would return {count} localizations, but the maximum allowed number of "
+                f"returned objects in a single request is {MAX_TO_RETRIEVE}. Change your query to "
+                f"return fewer localizations at a time."
+            )
+
         response_data = list(qs.values(*LOCALIZATION_PROPERTIES))
 
         # Adjust fields for csv output.
@@ -211,11 +221,17 @@ class LocalizationListAPI(BaseListView):
     def _delete(self, params):
         qs = get_annotation_queryset(params['project'], params, 'localization')
         count = qs.count()
-        if count > 0:
+        if MAX_TO_MODIFY >= count > 0:
             # Delete the localizations.
             bulk_delete_and_log_changes(qs, params["project"], self.request.user)
             query = get_annotation_es_query(params['project'], params, 'localization')
             TatorSearch().delete(self.kwargs['project'], query)
+        elif count > MAX_TO_MODIFY:
+            raise ValueError(
+                f"DELETE would delete {count} localizations, but the maximum allowed number of "
+                f"deletions in a single request is {MAX_TO_MODIFY}. Change your query to delete "
+                f"fewer localizations at a time."
+            )
 
         return {'message': f'Successfully deleted {count} localizations!'}
 
@@ -223,7 +239,7 @@ class LocalizationListAPI(BaseListView):
         patched_version = params.pop("version", None)
         qs = get_annotation_queryset(params['project'], params, 'localization')
         count = qs.count()
-        if count > 0:
+        if MAX_TO_MODIFY >= count > 0:
             # Get the current representation of the object for comparison
             obj = qs.first()
             first_id = obj.id
@@ -243,6 +259,12 @@ class LocalizationListAPI(BaseListView):
 
             query = get_annotation_es_query(params['project'], params, 'localization')
             TatorSearch().update(self.kwargs['project'], entity_type, query, new_attrs)
+        elif count > MAX_TO_MODIFY:
+            raise ValueError(
+                f"PATCH would update {count} localizations, but the maximum allowed number of "
+                f"updates in a single request is {MAX_TO_MODIFY}. Change your query to update "
+                f"fewer localizations at a time."
+            )
 
         return {'message': f'Successfully updated {count} localizations!'}
 
