@@ -1,0 +1,53 @@
+services:
+  rest:
+    image: ${REGISTRY}/tator_online:${TATOR_TAG}
+    build: containers/tator
+    networks:
+    - private
+  ui:
+    image: ${REGISTRY}/tator_ui:${TATOR_TAG}
+    build: containers/ui
+    networks:
+    - private
+  transcoder:
+    image: ${REGISTRY}/tator_client:${TATOR_TAG}
+    build: containers/tator_client
+    networks:
+    - private
+  postgis:
+    image: ${REGISTRY}/postgis:${TATOR_TAG}
+    build: containers/postgis
+    networks:
+    - private
+    volumes:
+    - ${HOST_VOLUME_SOURCE}/postgis:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: tator_online
+      PGDATA: /var/lib/postgresql/data/db-files
+  nginx:
+    image: "nginx:${NGINX_TAG}"
+    networks:
+    - private
+    - public
+    volumes:
+    - ${HOST_VOLUME_SOURCE}/static:/static
+    - ${HOST_VOLUME_SOURCE}/media:/media
+    - ${PWD}/
+  minio:
+    image: minio/minio:${MINIO_TAG}
+    networks:
+    - private
+    volumes:
+    - ${HOST_VOLUME_SOURCE}/objects:/data
+    command: minio server /data
+  redis:
+    image: redis:${REDIS_TAG}
+    networks:
+    - private
+networks:
+  private:
+    external: false
+  public:
+    external: true
