@@ -1,22 +1,18 @@
 services:
   rest:
     image: ${REGISTRY}/tator_online:${TATOR_TAG}
-    build: containers/tator
     networks:
     - private
   ui:
     image: ${REGISTRY}/tator_ui:${TATOR_TAG}
-    build: containers/ui
     networks:
     - private
   transcoder:
     image: ${REGISTRY}/tator_client:${TATOR_TAG}
-    build: containers/tator_client
     networks:
     - private
   postgis:
     image: ${REGISTRY}/postgis:${TATOR_TAG}
-    build: containers/postgis
     networks:
     - private
     volumes:
