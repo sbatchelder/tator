@@ -246,7 +246,7 @@ media_id_query = {
             'type': 'array',
             'items': {'$ref': '#/components/schemas/FloatArrayQuery'},
         },
-        'object_search' : {'type': 'object'},
+        'object_search' : {'$ref': '#/components/schemas/AttributeOperationSpec'},
     }
 }
 
